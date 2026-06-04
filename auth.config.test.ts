@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   buildDeployStatus,
   DEFAULT_OAUTH_PORTAL_URL,
+  normalizeAbsoluteUrl,
   resolveOAuthPortalUrl,
 } from "./shared/deployConfig";
 import { getPublicRuntimeConfig, injectRuntimeConfig } from "./server/_core/publicConfig";
@@ -10,6 +11,13 @@ describe("deployConfig", () => {
   it("defaults OAuth portal URL when missing", () => {
     expect(resolveOAuthPortalUrl(undefined)).toBe(DEFAULT_OAUTH_PORTAL_URL);
     expect(resolveOAuthPortalUrl("")).toBe(DEFAULT_OAUTH_PORTAL_URL);
+    expect(resolveOAuthPortalUrl("undefined")).toBe(DEFAULT_OAUTH_PORTAL_URL);
+  });
+
+  it("adds https protocol when missing", () => {
+    expect(normalizeAbsoluteUrl("portal.manus.im", DEFAULT_OAUTH_PORTAL_URL)).toBe(
+      "https://portal.manus.im"
+    );
   });
 
   it("lists missing required env vars", () => {
@@ -77,7 +85,7 @@ describe("getLoginUrl", () => {
     delete (window as Window & { __RUNTIME_CONFIG__?: unknown }).__RUNTIME_CONFIG__;
   });
 
-  it("throws when OAuth app id is missing", async () => {
+  it("returns null when OAuth app id is missing", async () => {
     window.__RUNTIME_CONFIG__ = {
       oauthPortalUrl: DEFAULT_OAUTH_PORTAL_URL,
       appId: "",
@@ -88,7 +96,7 @@ describe("getLoginUrl", () => {
     };
 
     const { getLoginUrl } = await import("./client/src/const");
-    expect(() => getLoginUrl()).toThrow(/VITE_APP_ID/);
+    expect(getLoginUrl()).toBeNull();
   });
 
   it("builds a valid login URL when configured", async () => {
@@ -102,7 +110,7 @@ describe("getLoginUrl", () => {
     };
 
     const { getLoginUrl } = await import("./client/src/const");
-    const url = new URL(getLoginUrl());
+    const url = new URL(getLoginUrl()!);
 
     expect(url.origin).toBe("https://portal.manus.im");
     expect(url.pathname).toBe("/app-auth");

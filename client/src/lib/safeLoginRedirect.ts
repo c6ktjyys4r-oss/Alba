@@ -7,6 +7,11 @@ export function tryRedirectToLogin(): boolean {
     return false;
   }
 
-  window.location.href = getLoginUrl();
+  const loginUrl = getLoginUrl();
+  if (!loginUrl) {
+    return false;
+  }
+
+  window.location.href = loginUrl;
   return true;
 }

@@ -12,9 +12,39 @@ export type DeployStatus = {
   missingEnvVars: string[];
 };
 
-export function resolveOAuthPortalUrl(value: string | undefined): string {
+const INVALID_ENV_LITERALS = new Set(["undefined", "null"]);
+
+/** Normalize env-provided URLs; fall back when empty, invalid, or missing a protocol. */
+export function normalizeAbsoluteUrl(
+  value: string | undefined,
+  fallback: string
+): string {
   const trimmed = value?.trim();
-  return trimmed || DEFAULT_OAUTH_PORTAL_URL;
+  if (!trimmed || INVALID_ENV_LITERALS.has(trimmed.toLowerCase())) {
+    return fallback;
+  }
+
+  let candidate = trimmed;
+  if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(candidate)) {
+    candidate = `https://${candidate}`;
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return fallback;
+    }
+    return `${parsed.origin}${parsed.pathname === "/" ? "" : parsed.pathname}`.replace(
+      /\/$/,
+      ""
+    );
+  } catch {
+    return fallback;
+  }
+}
+
+export function resolveOAuthPortalUrl(value: string | undefined): string {
+  return normalizeAbsoluteUrl(value, DEFAULT_OAUTH_PORTAL_URL);
 }
 
 export function resolveOAuthServerUrl(value: string | undefined): string {
