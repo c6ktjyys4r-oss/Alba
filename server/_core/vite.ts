@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
+import { injectRuntimeConfig } from "./publicConfig";
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -39,7 +40,10 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx?v=${nanoid()}"`
       );
       const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      res
+        .status(200)
+        .set({ "Content-Type": "text/html" })
+        .end(injectRuntimeConfig(page));
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -48,13 +52,18 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
+  const candidates = [
+    path.resolve(import.meta.dirname, "public"),
+    path.resolve(process.cwd(), "dist/public"),
+    path.resolve(import.meta.dirname, "../..", "dist", "public"),
+  ];
+
   const distPath =
-    process.env.NODE_ENV === "development"
-      ? path.resolve(import.meta.dirname, "../..", "dist", "public")
-      : path.resolve(import.meta.dirname, "public");
+    candidates.find(candidate => fs.existsSync(candidate)) ?? candidates[0];
+
   if (!fs.existsSync(distPath)) {
     console.error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
+      `Could not find the build directory. Checked: ${candidates.join(", ")}`
     );
   }
 
@@ -62,6 +71,8 @@ export function serveStatic(app: Express) {
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    const html = injectRuntimeConfig(fs.readFileSync(indexPath, "utf-8"));
+    res.status(200).set({ "Content-Type": "text/html" }).end(html);
   });
 }

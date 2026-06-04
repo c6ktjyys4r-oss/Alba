@@ -150,7 +150,35 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+function vitePluginOptionalAnalytics(): Plugin {
+  return {
+    name: "optional-analytics",
+    transformIndexHtml(html) {
+      const endpoint = process.env.VITE_ANALYTICS_ENDPOINT?.trim();
+      const websiteId = process.env.VITE_ANALYTICS_WEBSITE_ID?.trim();
+
+      if (!endpoint || !websiteId || endpoint.includes("%VITE_")) {
+        return html.replace(
+          /\s*<script[\s\S]*?%VITE_ANALYTICS[\s\S]*?<\/script>\s*/i,
+          "\n"
+        );
+      }
+
+      return html
+        .replace(/%VITE_ANALYTICS_ENDPOINT%/g, endpoint)
+        .replace(/%VITE_ANALYTICS_WEBSITE_ID%/g, websiteId);
+    },
+  };
+}
+
+const plugins = [
+  react(),
+  tailwindcss(),
+  jsxLocPlugin(),
+  vitePluginManusRuntime(),
+  vitePluginManusDebugCollector(),
+  vitePluginOptionalAnalytics(),
+];
 
 export default defineConfig({
   plugins,

@@ -2,6 +2,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
+import { getPublicRuntimeConfig } from "./publicConfig";
 import { sdk } from "./sdk";
 
 function getQueryParam(req: Request, key: string): string | undefined {
@@ -11,6 +12,28 @@ function getQueryParam(req: Request, key: string): string | undefined {
 
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
+    const deployStatus = getPublicRuntimeConfig();
+
+    if (!deployStatus.oauthConfigured) {
+      res
+        .status(503)
+        .type("html")
+        .send(
+          "<h1>OAuth not configured</h1><p>Set VITE_APP_ID on Render, then redeploy.</p>"
+        );
+      return;
+    }
+
+    if (!deployStatus.databaseConfigured || !deployStatus.jwtConfigured) {
+      res
+        .status(503)
+        .type("html")
+        .send(
+          "<h1>Server not configured</h1><p>Set DATABASE_URL and JWT_SECRET on Render, then redeploy.</p>"
+        );
+      return;
+    }
+
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
 

@@ -1,4 +1,4 @@
-import { getLoginUrl } from "@/const";
+import { tryRedirectToLogin } from "@/lib/safeLoginRedirect";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -9,8 +9,7 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
-    options ?? {};
+  const { redirectOnUnauthenticated = false, redirectPath } = options ?? {};
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
@@ -67,7 +66,12 @@ export function useAuth(options?: UseAuthOptions) {
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
 
-    window.location.href = redirectPath
+    if (redirectPath) {
+      window.location.href = redirectPath;
+      return;
+    }
+
+    tryRedirectToLogin();
   }, [
     redirectOnUnauthenticated,
     redirectPath,

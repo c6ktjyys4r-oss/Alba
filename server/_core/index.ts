@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { getPublicRuntimeConfig } from "./publicConfig";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -28,8 +29,25 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  const deployStatus = getPublicRuntimeConfig();
+
+  if (deployStatus.missingEnvVars.length > 0) {
+    console.warn(
+      `[Config] Missing environment variables: ${deployStatus.missingEnvVars.join(", ")}. ` +
+        "The app will start and show a setup page until these are configured."
+    );
+  }
+
   const app = express();
   const server = createServer(app);
+
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      ok: true,
+      ...deployStatus,
+    });
+  });
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));

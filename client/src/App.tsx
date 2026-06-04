@@ -1,13 +1,15 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
+import SetupRequired from "@/pages/SetupRequired";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import ERPLayout from "./components/ERPLayout";
 import { useAuth } from "./_core/hooks/useAuth";
-import { getLoginUrl } from "./const";
+import { isAppReady } from "./config";
+import { tryRedirectToLogin } from "./lib/safeLoginRedirect";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -27,6 +29,11 @@ import ImportData from "./pages/ImportData";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, loading } = useAuth();
+
+  if (!isAppReady()) {
+    return <SetupRequired />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -37,10 +44,14 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
       </div>
     );
   }
+
   if (!isAuthenticated) {
-    window.location.href = getLoginUrl();
+    if (!tryRedirectToLogin()) {
+      return <SetupRequired />;
+    }
     return null;
   }
+
   return (
     <ERPLayout>
       <Component />
