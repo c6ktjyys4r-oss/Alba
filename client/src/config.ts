@@ -36,9 +36,8 @@ export function isOAuthConfigured(): boolean {
 }
 
 export function isAppReady(): boolean {
-  const status = getDeployStatus();
-  // Standalone mode: only database and session signing are required to run
-  return status.databaseConfigured && status.jwtConfigured;
+  // Standalone mode: app is always ready to boot
+  return true;
 }
 
 /** @deprecated Use getDeployStatus() */

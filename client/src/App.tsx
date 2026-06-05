@@ -1,15 +1,13 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import SetupRequired from "@/pages/SetupRequired";
+import LoginPage from "@/pages/Login";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import ERPLayout from "./components/ERPLayout";
 import { useAuth } from "./_core/hooks/useAuth";
-import { isAppReady } from "./config";
-import { tryRedirectToLogin } from "./lib/safeLoginRedirect";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -30,10 +28,6 @@ import ImportData from "./pages/ImportData";
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, loading } = useAuth();
 
-  if (!isAppReady()) {
-    return <SetupRequired />;
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -46,18 +40,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!isAuthenticated) {
-    // Try OAuth redirect if configured; otherwise show a "not logged in" message
-    if (!tryRedirectToLogin()) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <div className="text-center max-w-md p-8">
-            <h1 className="text-2xl font-bold text-slate-800 mb-4">Alba ERP</h1>
-            <p className="text-slate-600 mb-4">You are not logged in. Please configure authentication or contact your administrator.</p>
-          </div>
-        </div>
-      );
-    }
-    return null;
+    return <LoginPage />;
   }
 
   return (
