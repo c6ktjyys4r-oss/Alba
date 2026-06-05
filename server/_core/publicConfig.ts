@@ -16,6 +16,7 @@ export function getPublicRuntimeConfig(): PublicRuntimeConfig {
 
 export function injectRuntimeConfig(html: string): string {
   const config = getPublicRuntimeConfig();
-  const script = `<script>window.__RUNTIME_CONFIG__=${JSON.stringify(config)}</script>`;
-  return html.replace("</head>", `${script}\n  </head>`);
+  const json = JSON.stringify(config).replace(/</g, '\\u003c');
+  const scriptTag = `<script>window.__RUNTIME_CONFIG__=${json}</script>`;
+  return html.replace("</head>", () => `${scriptTag}\n  </head>`);
 }

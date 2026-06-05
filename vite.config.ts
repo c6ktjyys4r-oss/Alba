@@ -159,7 +159,7 @@ function vitePluginOptionalAnalytics(): Plugin {
 
       if (!endpoint || !websiteId || endpoint.includes("%VITE_")) {
         return html.replace(
-          /\s*<script[\s\S]*?%VITE_ANALYTICS[\s\S]*?<\/script>\s*/i,
+          /\s*<script\b[^>]*%VITE_ANALYTICS[^>]*>[\s\S]*?<\/script>\s*/i,
           "\n"
         );
       }
