@@ -31,11 +31,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const deployStatus = getPublicRuntimeConfig();
 
-  // In standalone mode, only DATABASE_URL and JWT_SECRET are critical
-  const criticalMissing = deployStatus.missingEnvVars.filter(v => v !== "VITE_APP_ID");
-  if (criticalMissing.length > 0) {
+  if (deployStatus.missingEnvVars.length > 0) {
     console.warn(
-      `[Config] Missing critical environment variables: ${criticalMissing.join(", ")}. ` +
+      `[Config] Missing environment variables: ${deployStatus.missingEnvVars.join(", ")}. ` +
         "The app requires DATABASE_URL and JWT_SECRET to function."
     );
   }
@@ -53,7 +51,7 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  // OAuth callback under /api/oauth/callback
+  // OAuth callback under /api/oauth/callback (kept for optional OAuth support)
   registerOAuthRoutes(app);
   // tRPC API
   app.use(

@@ -2,8 +2,7 @@ import { AlertTriangle, ExternalLink } from "lucide-react";
 import { getDeployStatus } from "@/config";
 
 const ENV_HINTS: Record<string, string> = {
-  VITE_APP_ID: "Your Manus OAuth application ID (Integrations → OAuth app)",
-  DATABASE_URL: "MySQL connection string for the clinic database",
+  DATABASE_URL: "MySQL connection string (e.g., mysql://user:password@host:3306/alba)",
   JWT_SECRET: "Random secret string used to sign session cookies",
 };
 
@@ -22,9 +21,9 @@ export default function SetupRequired() {
               Alba ERP — setup required
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              The app is running, but some environment variables are missing on
-              Render. Add them in your service&apos;s{" "}
-              <strong>Environment</strong> tab, then redeploy.
+              The app is running, but some environment variables are missing.
+              Add them in your hosting service&apos;s{" "}
+              <strong>Environment</strong> settings, then redeploy.
             </p>
           </div>
         </div>
@@ -44,10 +43,10 @@ export default function SetupRequired() {
         </ul>
 
         <div className="mt-6 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <p className="font-medium">Suggested values</p>
+          <p className="font-medium">Required variables</p>
           <ul className="mt-2 space-y-1 font-mono text-xs">
-            <li>VITE_OAUTH_PORTAL_URL=https://portal.manus.im</li>
-            <li>OAUTH_SERVER_URL=https://api.manus.im</li>
+            <li>DATABASE_URL=mysql://user:password@host:3306/alba</li>
+            <li>JWT_SECRET=your-random-secret-string</li>
           </ul>
         </div>
 

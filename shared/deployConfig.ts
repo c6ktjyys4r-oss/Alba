@@ -1,4 +1,4 @@
-/** Default Manus OAuth/API endpoints when env vars are not set. */
+/** Default OAuth/API endpoints when env vars are not set. */
 export const DEFAULT_OAUTH_PORTAL_URL = "https://portal.manus.im";
 export const DEFAULT_OAUTH_SERVER_URL = "https://api.manus.im";
 export const DEFAULT_FORGE_API_URL = "https://forge.manus.im";
@@ -67,9 +67,7 @@ export function buildDeployStatus(env: {
   const oauthPortalUrl = resolveOAuthPortalUrl(env.viteOAuthPortalUrl);
   const appId = env.viteAppId?.trim() ?? "";
 
-  if (!env.viteAppId?.trim()) {
-    missingEnvVars.push("VITE_APP_ID");
-  }
+  // VITE_APP_ID is optional in standalone mode — do NOT add to missingEnvVars
   if (!env.databaseUrl?.trim()) {
     missingEnvVars.push("DATABASE_URL");
   }
