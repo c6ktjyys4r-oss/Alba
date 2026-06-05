@@ -24,8 +24,19 @@ let _db: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
+    const url = process.env.DATABASE_URL.trim();
+    // Validate that DATABASE_URL looks like a MySQL connection string
+    if (!url.startsWith("mysql://") && !url.startsWith("mysql2://") && !url.startsWith("mariadb://")) {
+      console.error(
+        `[Database] DATABASE_URL is not a valid MySQL connection string.\n` +
+        `  Expected format: mysql://user:password@host:3306/database\n` +
+        `  Received: "${url.substring(0, 20)}..."\n` +
+        `  Please check your Render environment variables.`
+      );
+      return null;
+    }
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _db = drizzle(url);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
