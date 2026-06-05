@@ -46,8 +46,16 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!isAuthenticated) {
+    // Try OAuth redirect if configured; otherwise show a "not logged in" message
     if (!tryRedirectToLogin()) {
-      return <SetupRequired />;
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center max-w-md p-8">
+            <h1 className="text-2xl font-bold text-slate-800 mb-4">Alba ERP</h1>
+            <p className="text-slate-600 mb-4">You are not logged in. Please configure authentication or contact your administrator.</p>
+          </div>
+        </div>
+      );
     }
     return null;
   }

@@ -31,10 +31,12 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const deployStatus = getPublicRuntimeConfig();
 
-  if (deployStatus.missingEnvVars.length > 0) {
+  // In standalone mode, only DATABASE_URL and JWT_SECRET are critical
+  const criticalMissing = deployStatus.missingEnvVars.filter(v => v !== "VITE_APP_ID");
+  if (criticalMissing.length > 0) {
     console.warn(
-      `[Config] Missing environment variables: ${deployStatus.missingEnvVars.join(", ")}. ` +
-        "The app will start and show a setup page until these are configured."
+      `[Config] Missing critical environment variables: ${criticalMissing.join(", ")}. ` +
+        "The app requires DATABASE_URL and JWT_SECRET to function."
     );
   }
 

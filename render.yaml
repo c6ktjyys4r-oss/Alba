@@ -9,21 +9,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: VITE_OAUTH_PORTAL_URL
-        value: https://portal.manus.im
-      - key: OAUTH_SERVER_URL
-        value: https://api.manus.im
-      - key: BUILT_IN_FORGE_API_URL
-        value: https://forge.manus.im
-      - key: VITE_FRONTEND_FORGE_API_URL
-        value: https://forge.manus.im
-      - key: VITE_APP_ID
-        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
-        sync: false
-      - key: BUILT_IN_FORGE_API_KEY
-        sync: false
-      - key: VITE_FRONTEND_FORGE_API_KEY
         sync: false
