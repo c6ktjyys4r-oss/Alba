@@ -8,6 +8,13 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { getPublicRuntimeConfig } from "./publicConfig";
+import { getDb } from "../db";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -30,6 +37,23 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const deployStatus = getPublicRuntimeConfig();
+
+  // Auto-run migrations on startup if DB is available
+  const db = await getDb();
+  if (db) {
+    try {
+      console.log("[Database] Running migrations...");
+      // In production, migrations are in the root drizzle folder
+      const migrationsFolder = process.env.NODE_ENV === "production" 
+        ? path.resolve(__dirname, "../drizzle")
+        : path.resolve(__dirname, "../../drizzle");
+      
+      await migrate(db, { migrationsFolder });
+      console.log("[Database] Migrations completed successfully.");
+    } catch (error) {
+      console.error("[Database] Migration failed:", error);
+    }
+  }
 
   if (deployStatus.missingEnvVars.length > 0) {
     console.warn(
