@@ -166,7 +166,7 @@ const payrollRouter = router({
     const structure = await db.getSalaryStructure(input.employeeId);
     if (!structure) throw new Error("No salary structure found for employee");
     const basic = Number(structure.basicSalary);
-    const allowances = Number(structure.housingAllowance) + Number(structure.transportAllowance) + Number(structure.otherAllowances);
+    const allowances = Number(structure.transportAllowance) + Number(structure.otherAllowances);
     const deductions = Number(structure.socialInsurance) + Number(structure.taxDeduction) + Number(structure.otherDeductions);
     const bonus = input.bonus || 0;
     const net = basic + allowances - deductions + bonus;
