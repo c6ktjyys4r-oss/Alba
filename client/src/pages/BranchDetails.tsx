@@ -1,0 +1,149 @@
+import { useParams, useLocation } from "wouter";
+  import { trpc } from "@/lib/trpc";
+  import { useLanguage } from "@/contexts/LanguageContext";
+  import { Button } from "@/components/ui/button";
+  import { ChevronLeft, Building2, MapPin, Phone, User2, Users, Crown, Stethoscope, HeartPulse, Briefcase } from "lucide-react";
+  import { cn } from "@/lib/utils";
+
+  const GROUP_ORDER = ["Branch Manager", "Administrative Staff", "Doctors", "Nursing Staff"];
+
+  function classifyEmployee(emp: any): string {
+    const title = (emp.jobTitle || "").toLowerCase();
+    const role = (emp.erpRole || "").toLowerCase();
+    if (role === "branch_manager" || title.includes("branch manager") || title.includes("مدير فرع") || title.includes("مدير")) return "Branch Manager";
+    if (title.includes("doctor") || title.includes("physician") || title.includes("دكتور") || title.includes("طبيب") || title.includes("specialist")) return "Doctors";
+    if (title.includes("nurse") || title.includes("nursing") || title.includes("ممرض") || title.includes("تمريض")) return "Nursing Staff";
+    return "Administrative Staff";
+  }
+
+  const GROUP_ICON: Record<string, React.ReactNode> = {
+    "Branch Manager": <Crown size={15} className="text-amber-500"/>,
+    "Doctors": <Stethoscope size={15} className="text-blue-500"/>,
+    "Nursing Staff": <HeartPulse size={15} className="text-rose-500"/>,
+    "Administrative Staff": <Briefcase size={15} className="text-slate-500"/>,
+  };
+
+  export default function BranchDetails() {
+    const params = useParams<{ id: string }>();
+    const [, setLocation] = useLocation();
+    const { t } = useLanguage();
+    const branchId = Number(params.id);
+
+    const { data: branch, isLoading: loadBranch } = trpc.branch.getById.useQuery({ id: branchId }, { enabled: !!branchId });
+    const { data: employees = [], isLoading: loadEmps } = trpc.employee.list.useQuery({ branchId }, { enabled: !!branchId });
+    const { data: departments = [] } = trpc.department.list.useQuery();
+
+    if (loadBranch || loadEmps) {
+      return (
+        <div className="p-6 space-y-4">
+          <div className="h-5 w-32 bg-slate-100 rounded animate-pulse"/>
+          <div className="h-8 w-64 bg-slate-100 rounded animate-pulse"/>
+          <div className="grid grid-cols-4 gap-4">
+            {Array.from({length:4}).map((_,i)=><div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse"/>)}
+          </div>
+        </div>
+      );
+    }
+
+    if (!branch) return <div className="p-6 text-slate-400">Branch not found.</div>;
+
+    const grouped: Record<string, any[]> = { "Branch Manager":[], "Administrative Staff":[], "Doctors":[], "Nursing Staff":[] };
+    (employees as any[]).forEach(e => { grouped[classifyEmployee(e)].push(e); });
+
+    return (
+      <div className="p-4 lg:p-6 space-y-6">
+        {/* Back */}
+        <Button variant="ghost" size="sm" className="gap-1.5 text-slate-500 -ml-2" onClick={()=>setLocation("/branches")}>
+          <ChevronLeft size={16}/> Back to Branches
+        </Button>
+
+        {/* Branch header */}
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{branch.name}</h1>
+          {(branch as any).nameAr && <p className="text-slate-500 text-sm mt-0.5">{(branch as any).nameAr}</p>}
+        </div>
+
+        {/* Info cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { icon:<User2 size={16} className="text-blue-600"/>, bg:"bg-blue-50", label:"Manager", value:(branch as any).managerName||"—" },
+            { icon:<MapPin size={16} className="text-green-600"/>, bg:"bg-green-50", label:"City / Address", value:(branch as any).address||"—" },
+            { icon:<Phone size={16} className="text-amber-600"/>, bg:"bg-amber-50", label:"Phone", value:(branch as any).phone||"—" },
+            { icon:<Users size={16} className="text-violet-600"/>, bg:"bg-violet-50", label:"Employees", value:(employees as any[]).length },
+          ].map(item=>(
+            <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${item.bg}`}>{item.icon}</div>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500">{item.label}</p>
+                <p className="text-sm font-semibold text-slate-900 truncate">{item.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Employees */}
+        {(employees as any[]).length === 0 ? (
+          <div className="py-16 text-center text-slate-400">
+            <Users size={40} className="mx-auto mb-3 opacity-30"/>
+            <p className="text-sm">No employees assigned to this branch</p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {GROUP_ORDER.map(groupName => {
+              const emps = grouped[groupName];
+              if (!emps || emps.length === 0) return null;
+              const isMgr = groupName === "Branch Manager";
+              return (
+                <section key={groupName}>
+                  <div className="flex items-center gap-2 mb-3">
+                    {GROUP_ICON[groupName]}
+                    <h2 className={cn("text-sm font-semibold uppercase tracking-wide", isMgr ? "text-amber-700" : "text-slate-600")}>
+                      {groupName}
+                    </h2>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", isMgr ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500")}>
+                      {emps.length}
+                    </span>
+                  </div>
+                  <div className={cn("grid gap-3", isMgr ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3")}>
+                    {emps.map((emp: any) => {
+                      const dept = (departments as any[]).find(d=>d.id===emp.departmentId);
+                      return (
+                        <div
+                          key={emp.id}
+                          onClick={()=>setLocation(`/employees/${emp.id}`)}
+                          className={cn(
+                            "rounded-xl border p-4 cursor-pointer hover:shadow-md transition-all group",
+                            isMgr
+                              ? "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 hover:border-amber-300"
+                              : "bg-white border-slate-200 hover:border-blue-200"
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
+                              isMgr ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                            )}>
+                              {(emp.firstName||"")[0]}{(emp.lastName||"")[0]}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-slate-900 truncate group-hover:text-blue-700 transition-colors">{emp.firstName} {emp.lastName}</p>
+                              <p className="text-xs text-slate-500 truncate">{emp.jobTitle||"—"}</p>
+                              <p className="text-xs text-slate-400 truncate">{dept?.name||"—"}</p>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 badge-${emp.status}`}>
+                              {emp.status}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+  
