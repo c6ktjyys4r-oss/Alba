@@ -164,15 +164,13 @@ const payrollRouter = router({
   })).mutation(async ({ input }) => {
     const structure = await db.getSalaryStructure(input.employeeId);
     if (!structure) throw new Error("No salary structure found for employee");
-    const employee = await db.getEmployeeById(input.employeeId);
-    const isSaudi = (employee?.nationality ?? "").toLowerCase().includes("saudi");
     const basic = Number(structure.basicSalary);
     const housing = Number(structure.housingAllowance);
     const gosiSalary = basic + housing;
-    const gosiEmployeeDeduction = isSaudi ? Math.round(gosiSalary * 9.75) / 100 : 0;
-    const gosiEmployerContribution = isSaudi ? Math.round(gosiSalary * 11.75) / 100 : Math.round(gosiSalary * 2) / 100;
+    const gosiPercentage = Number(structure.taxDeduction) || 0;
+    const gosiAmount = Math.round(gosiSalary * gosiPercentage) / 100;
     const allowances = housing + Number(structure.transportAllowance) + Number(structure.otherAllowances);
-    const deductions = gosiEmployeeDeduction + Number(structure.taxDeduction) + Number(structure.otherDeductions);
+    const deductions = gosiAmount + Number(structure.otherDeductions);
     const bonus = input.bonus || 0;
     const net = basic + allowances - deductions + bonus;
     return db.createPayrollRecord({
