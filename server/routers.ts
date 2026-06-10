@@ -507,7 +507,7 @@ const importRouter = router({
             departmentId,
             jobTitle: jobTitle || undefined,
             erpRole: "employee",
-            hireDate: dateOfBirth ? new Date(dateOfBirth) : undefined,
+            hireDate: dateOfBirth || undefined,
             status: "active",
           } as any);
 
