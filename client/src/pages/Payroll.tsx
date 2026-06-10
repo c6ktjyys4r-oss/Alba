@@ -23,7 +23,7 @@ export default function Payroll() {
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState("");
-  const [salaryForm, setSalaryForm] = useState({ basicSalary:"", housingAllowance:"", transportAllowance:"", otherAllowances:"", taxDeduction:"", otherDeductions:"", currency:"SAR" });
+  const [salaryForm, setSalaryForm] = useState({ basicSalary:"", housingAllowance:"", transportAllowance:"", otherAllowances:"", gosiPercentage:"0", otherDeductions:"", currency:"SAR" });
   const [genForm, setGenForm] = useState({ employeeId:"", bonus:"", notes:"" });
   const utils = trpc.useUtils();
 
@@ -47,7 +47,7 @@ export default function Payroll() {
   const openSalaryDialog = (empId: string) => {
     setSelectedEmpId(empId);
     if (salaryStructure) {
-      setSalaryForm({ basicSalary:String(salaryStructure.basicSalary||""), housingAllowance:String(salaryStructure.housingAllowance||""), transportAllowance:String(salaryStructure.transportAllowance||""), otherAllowances:String(salaryStructure.otherAllowances||""), taxDeduction:String(salaryStructure.taxDeduction||""), otherDeductions:String(salaryStructure.otherDeductions||""), currency:salaryStructure.currency||"SAR" });
+      setSalaryForm({ basicSalary:String(salaryStructure.basicSalary||""), housingAllowance:String(salaryStructure.housingAllowance||""), transportAllowance:String(salaryStructure.transportAllowance||""), otherAllowances:String(salaryStructure.otherAllowances||""), gosiPercentage:String(salaryStructure.taxDeduction||"0"), otherDeductions:String(salaryStructure.otherDeductions||""), currency:salaryStructure.currency||"SAR" });
     }
     setSalaryDialogOpen(true);
   };
@@ -159,7 +159,6 @@ export default function Payroll() {
                 {key:"housingAllowance",label:t("payroll.housingAllowance")},
                 {key:"transportAllowance",label:t("payroll.transportAllowance")},
                 {key:"otherAllowances",label:t("payroll.otherAllowances")},
-                {key:"taxDeduction",label:t("payroll.taxDeduction")},
                 {key:"otherDeductions",label:t("payroll.otherDeductions")},
               ].map(({key,label})=>(
                 <div key={key} className="space-y-1">
@@ -167,11 +166,31 @@ export default function Payroll() {
                   <Input type="number" value={(salaryForm as any)[key]} onChange={e=>setSalaryForm({...salaryForm,[key]:e.target.value})} className="h-8 text-sm"/>
                 </div>
               ))}
+              <div className="space-y-1">
+                <Label className="text-xs">GOSI Percentage / نسبة التأمينات</Label>
+                <Select value={salaryForm.gosiPercentage} onValueChange={v=>setSalaryForm({...salaryForm,gosiPercentage:v})}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">0%</SelectItem>
+                    <SelectItem value="9.75">9.75%</SelectItem>
+                    <SelectItem value="10.25">10.25%</SelectItem>
+                    <SelectItem value="10.75">10.75%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {Number(salaryForm.gosiPercentage) > 0 && (
+                <div className="space-y-1">
+                  <Label className="text-xs">GOSI Amount / مبلغ التأمينات</Label>
+                  <div className="h-8 text-sm flex items-center px-3 rounded-md border border-slate-200 bg-slate-50 text-slate-600">
+                    {Math.round((Number(salaryForm.basicSalary) + Number(salaryForm.housingAllowance)) * Number(salaryForm.gosiPercentage)) / 100} SAR
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={()=>setSalaryDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={()=>upsertSalary.mutate({ employeeId:Number(selectedEmpId), basicSalary:Number(salaryForm.basicSalary), housingAllowance:Number(salaryForm.housingAllowance), transportAllowance:Number(salaryForm.transportAllowance), otherAllowances:Number(salaryForm.otherAllowances), taxDeduction:Number(salaryForm.taxDeduction), otherDeductions:Number(salaryForm.otherDeductions), currency:salaryForm.currency })} disabled={!selectedEmpId||upsertSalary.isPending}>{t("common.save")}</Button>
+            <Button onClick={()=>upsertSalary.mutate({ employeeId:Number(selectedEmpId), basicSalary:Number(salaryForm.basicSalary), housingAllowance:Number(salaryForm.housingAllowance), transportAllowance:Number(salaryForm.transportAllowance), otherAllowances:Number(salaryForm.otherAllowances), taxDeduction:Number(salaryForm.gosiPercentage), otherDeductions:Number(salaryForm.otherDeductions), currency:salaryForm.currency })} disabled={!selectedEmpId||upsertSalary.isPending}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
