@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { trpc } from "@/lib/trpc";
 import PageHeader from "@/components/PageHeader";
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Building2, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Users, Eye, Search } from "lucide-react";
 
 const defaultBranchForm = { name:"", nameAr:"", address:"", phone:"", email:"", managerName:"" };
 const defaultDeptForm = { name:"", nameAr:"", branchId:"" };
@@ -24,7 +25,11 @@ export default function Branches() {
   const [editDeptId, setEditDeptId] = useState<number|null>(null);
   const [branchForm, setBranchForm] = useState({...defaultBranchForm});
   const [deptForm, setDeptForm] = useState({...defaultDeptForm});
-  const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
+    const [detailsOpen, setDetailsOpen] = useState(false);
+    const [selectedBranch, setSelectedBranch] = useState<any>(null);
+    const [detailsSearch, setDetailsSearch] = useState("");
+    const utils = trpc.useUtils();
 
   const { data: branches = [], isLoading: loadBranches } = trpc.branch.list.useQuery();
   const { data: departments = [], isLoading: loadDepts } = trpc.department.list.useQuery();
@@ -39,6 +44,7 @@ export default function Branches() {
 
   const openEditBranch = (b: any) => { setEditBranchId(b.id); setBranchForm({ name:b.name||"", nameAr:b.nameAr||"", address:b.address||"", phone:b.phone||"", email:b.email||"", managerName:b.managerName||"" }); setBranchDialog(true); };
   const openEditDept = (d: any) => { setEditDeptId(d.id); setDeptForm({ name:d.name||"", nameAr:d.nameAr||"", branchId:d.branchId?String(d.branchId):"" }); setDeptDialog(true); };
+    const openBranchDetails = (b: any) => { setSelectedBranch(b); setDetailsSearch(""); setDetailsOpen(true); };
 
   return (
     <div className="p-4 lg:p-6">
@@ -65,13 +71,13 @@ export default function Branches() {
               const empCount = employees.filter((e: any)=>e.branchId===b.id).length;
               const deptCount = departments.filter((d: any)=>d.branchId===b.id).length;
               return (
-                <Card key={b.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+                <Card key={b.id} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={()=>openBranchDetails(b)}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center"><Building2 size={18} className="text-blue-600"/></div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={()=>openEditBranch(b)}><Edit size={13}/></Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={()=>deleteBranch.mutate({id:b.id})}><Trash2 size={13}/></Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e)=>{e.stopPropagation();openEditBranch(b)}}><Edit size={13}/></Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={(e)=>{e.stopPropagation();deleteBranch.mutate({id:b.id})}}><Trash2 size={13}/></Button>
                       </div>
                     </div>
                     <CardTitle className="text-base mt-2">{b.name}</CardTitle>
@@ -131,7 +137,93 @@ export default function Branches() {
         </TabsContent>
       </Tabs>
 
-      {/* Branch Dialog */}
+      {/* Branch Details Dialog */}
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Building2 size={18} className="text-blue-600"/>
+                {selectedBranch?.name}
+                {selectedBranch?.nameAr && <span className="text-slate-400 font-normal text-sm">— {selectedBranch.nameAr}</span>}
+              </DialogTitle>
+            </DialogHeader>
+            {(()=>{
+              const branchEmps = employees.filter((e: any)=>e.branchId===selectedBranch?.id);
+              const filtered = branchEmps.filter((e: any)=>{
+                const q = detailsSearch.toLowerCase();
+                if (!q) return true;
+                return (
+                  `${e.firstName} ${e.lastName}`.toLowerCase().includes(q)||
+                  (e.jobTitle||"").toLowerCase().includes(q)||
+                  (e.status||"").toLowerCase().includes(q)
+                );
+              });
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-700">{branchEmps.length} {t("employees.title")}</span>
+                    {branchEmps.length>0 && (
+                      <div className="relative w-56">
+                        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                        <input
+                          className="w-full pl-8 pr-3 h-8 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                          placeholder="Search employees…"
+                          value={detailsSearch}
+                          onChange={e=>setDetailsSearch(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  {branchEmps.length===0 ? (
+                    <div className="py-12 text-center text-slate-400">
+                      <Users size={32} className="mx-auto mb-2 opacity-40"/>
+                      <p className="text-sm">No employees assigned</p>
+                    </div>
+                  ) : filtered.length===0 ? (
+                    <p className="py-8 text-center text-slate-400 text-sm">No employees match your search</p>
+                  ) : (
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100">
+                            <th className="text-start px-4 py-2.5 font-medium text-slate-600">Name</th>
+                            <th className="text-start px-4 py-2.5 font-medium text-slate-600">Job Title</th>
+                            <th className="text-start px-4 py-2.5 font-medium text-slate-600">{t("branches.departments")}</th>
+                            <th className="text-start px-4 py-2.5 font-medium text-slate-600">{t("common.status")}</th>
+                            <th className="px-4 py-2.5"/>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map((e: any)=>{
+                            const dept = departments.find((d: any)=>d.id===e.departmentId);
+                            return (
+                              <tr key={e.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-2.5 font-medium text-slate-900">{e.firstName} {e.lastName}</td>
+                                <td className="px-4 py-2.5 text-slate-600">{e.jobTitle||"—"}</td>
+                                <td className="px-4 py-2.5 text-slate-600">{dept?.name||"—"}</td>
+                                <td className="px-4 py-2.5">
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium badge-${e.status}`}>{e.status}</span>
+                                </td>
+                                <td className="px-4 py-2.5 text-end">
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600" title="View employee profile"
+                                    onClick={()=>{setDetailsOpen(false);setLocation("/employees");}}>
+                                    <Eye size={14}/>
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
+
+        {/* Branch Dialog */}
       <Dialog open={branchDialog} onOpenChange={setBranchDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{editBranchId?"Edit Branch":t("branches.addBranch")}</DialogTitle></DialogHeader>
