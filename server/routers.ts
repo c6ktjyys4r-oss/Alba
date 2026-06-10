@@ -451,7 +451,7 @@ const importRouter = router({
       
       if (!mainBranchId) {
         const newBranch = await db.createBranch({ name: "Main Branch", address: "Riyadh" });
-        mainBranchId = (newBranch as any).insertId || 1;
+        mainBranchId = (newBranch as any)[0]?.id;
       }
 
       // Process each staff record
@@ -480,7 +480,7 @@ const importRouter = router({
           
           if (!departmentId) {
             const newDept = await db.createDepartment({ name: departmentName, branchId: mainBranchId });
-            departmentId = (newDept as any).insertId || 1;
+            departmentId = (newDept as any)[0]?.id;
           }
 
           // Check if employee exists
