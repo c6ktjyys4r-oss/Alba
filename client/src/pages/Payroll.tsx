@@ -23,7 +23,7 @@ export default function Payroll() {
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [selectedEmpId, setSelectedEmpId] = useState("");
-  const [salaryForm, setSalaryForm] = useState({ basicSalary:"", housingAllowance:"", transportAllowance:"", otherAllowances:"", socialInsurance:"", taxDeduction:"", otherDeductions:"", currency:"SAR" });
+  const [salaryForm, setSalaryForm] = useState({ basicSalary:"", housingAllowance:"", transportAllowance:"", otherAllowances:"", taxDeduction:"", otherDeductions:"", currency:"SAR" });
   const [genForm, setGenForm] = useState({ employeeId:"", bonus:"", notes:"" });
   const utils = trpc.useUtils();
 
@@ -47,7 +47,7 @@ export default function Payroll() {
   const openSalaryDialog = (empId: string) => {
     setSelectedEmpId(empId);
     if (salaryStructure) {
-      setSalaryForm({ basicSalary:String(salaryStructure.basicSalary||""), housingAllowance:String(salaryStructure.housingAllowance||""), transportAllowance:String(salaryStructure.transportAllowance||""), otherAllowances:String(salaryStructure.otherAllowances||""), socialInsurance:String(salaryStructure.socialInsurance||""), taxDeduction:String(salaryStructure.taxDeduction||""), otherDeductions:String(salaryStructure.otherDeductions||""), currency:salaryStructure.currency||"SAR" });
+      setSalaryForm({ basicSalary:String(salaryStructure.basicSalary||""), housingAllowance:String(salaryStructure.housingAllowance||""), transportAllowance:String(salaryStructure.transportAllowance||""), otherAllowances:String(salaryStructure.otherAllowances||""), taxDeduction:String(salaryStructure.taxDeduction||""), otherDeductions:String(salaryStructure.otherDeductions||""), currency:salaryStructure.currency||"SAR" });
     }
     setSalaryDialogOpen(true);
   };
@@ -159,7 +159,6 @@ export default function Payroll() {
                 {key:"housingAllowance",label:t("payroll.housingAllowance")},
                 {key:"transportAllowance",label:t("payroll.transportAllowance")},
                 {key:"otherAllowances",label:t("payroll.otherAllowances")},
-                {key:"socialInsurance",label:t("payroll.socialInsurance")},
                 {key:"taxDeduction",label:t("payroll.taxDeduction")},
                 {key:"otherDeductions",label:t("payroll.otherDeductions")},
               ].map(({key,label})=>(
@@ -172,7 +171,7 @@ export default function Payroll() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={()=>setSalaryDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={()=>upsertSalary.mutate({ employeeId:Number(selectedEmpId), basicSalary:Number(salaryForm.basicSalary), housingAllowance:Number(salaryForm.housingAllowance), transportAllowance:Number(salaryForm.transportAllowance), otherAllowances:Number(salaryForm.otherAllowances), socialInsurance:Number(salaryForm.socialInsurance), taxDeduction:Number(salaryForm.taxDeduction), otherDeductions:Number(salaryForm.otherDeductions), currency:salaryForm.currency })} disabled={!selectedEmpId||upsertSalary.isPending}>{t("common.save")}</Button>
+            <Button onClick={()=>upsertSalary.mutate({ employeeId:Number(selectedEmpId), basicSalary:Number(salaryForm.basicSalary), housingAllowance:Number(salaryForm.housingAllowance), transportAllowance:Number(salaryForm.transportAllowance), otherAllowances:Number(salaryForm.otherAllowances), taxDeduction:Number(salaryForm.taxDeduction), otherDeductions:Number(salaryForm.otherDeductions), currency:salaryForm.currency })} disabled={!selectedEmpId||upsertSalary.isPending}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
