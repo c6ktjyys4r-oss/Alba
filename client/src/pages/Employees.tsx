@@ -58,7 +58,7 @@ export default function Employees() {
   };
 
   const handleSubmit = () => {
-    const payload: any = { ...form, branchId:form.branchId?Number(form.branchId):undefined, departmentId:form.departmentId?Number(form.departmentId):undefined, gender:form.gender||undefined, dateOfBirth:form.dateOfBirth||undefined, hireDate:form.hireDate||undefined };
+    const payload: any = { ...form, branchId:form.branchId?Number(form.branchId):undefined, departmentId:form.departmentId?Number(form.departmentId):undefined, gender:form.gender||undefined, dateOfBirth:form.dateOfBirth||undefined, hireDate:form.hireDate||undefined, employeeCode:form.employeeCode||undefined };
     if (editId) updateMutation.mutate({ id: editId, ...payload });
     else createMutation.mutate(payload);
   };
