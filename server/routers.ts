@@ -186,7 +186,41 @@ const payrollRouter = router({
     } as any);
   }),
   updateStatus: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(["draft", "approved", "paid"]) })).mutation(({ input }) => db.updatePayrollRecord(input.id, { status: input.status, paidAt: input.status === "paid" ? new Date() : undefined })),
-});
+    edit: protectedProcedure.input(z.object({
+      id: z.number(),
+      bonus: z.number().optional(),
+      notes: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const record = await db.getPayrollRecordById(input.id);
+      if (!record) throw new Error("Payroll record not found");
+      if (record.status !== "draft") throw new Error("Only draft payroll records can be edited");
+      const structure = await db.getSalaryStructure(record.employeeId);
+      if (!structure) throw new Error("No salary structure found for employee");
+      const basic = Number(structure.basicSalary);
+      const housing = Number(structure.housingAllowance);
+      const gosiSalary = basic + housing;
+      const gosiPercentage = Number(structure.taxDeduction) || 0;
+      const gosiAmount = Math.round(gosiSalary * gosiPercentage) / 100;
+      const allowances = housing + Number(structure.transportAllowance) + Number(structure.otherAllowances);
+      const deductions = gosiAmount + Number(structure.otherDeductions);
+      const bonus = input.bonus !== undefined ? input.bonus : Number(record.bonus) || 0;
+      const net = basic + allowances - deductions + bonus;
+      return db.updatePayrollRecord(input.id, {
+        basicSalary: String(basic),
+        totalAllowances: String(allowances),
+        totalDeductions: String(deductions),
+        bonus: String(bonus),
+        netSalary: String(net),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      });
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+      const record = await db.getPayrollRecordById(input.id);
+      if (!record) throw new Error("Payroll record not found");
+      if (record.status !== "draft") throw new Error("Only draft payroll records can be deleted");
+      return db.deletePayrollRecord(input.id);
+    }),
+  });
 
 // ─── Attendance Router ────────────────────────────────────────────────────────
 const attendanceRouter = router({
