@@ -24,6 +24,8 @@ import Tasks from "./pages/Tasks";
 import Reports from "./pages/Reports";
 import AIAssistant from "./pages/AIAssistant";
 import ImportData from "./pages/ImportData";
+  import BranchDetails from "./pages/BranchDetails";
+  import EmployeeProfile from "./pages/EmployeeProfile";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, loading } = useAuth();
@@ -67,7 +69,9 @@ function Router() {
       <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
       <Route path="/ai-assistant" component={() => <ProtectedRoute component={AIAssistant} />} />
       <Route path="/import-data" component={() => <ProtectedRoute component={ImportData} />} />
-      <Route path="/404" component={NotFound} />
+      <Route path="/branches/:id" component={() => <ProtectedRoute component={BranchDetails} />} />
+        <Route path="/employees/:id" component={() => <ProtectedRoute component={EmployeeProfile} />} />
+        <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
