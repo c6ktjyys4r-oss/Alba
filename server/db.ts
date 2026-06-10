@@ -271,6 +271,25 @@ export async function updatePayrollStatus(id: number, status: string) {
   return db.update(payrollRecords).set({ status: status as any, paidAt: status === "paid" ? new Date() : null }).where(eq(payrollRecords.id, id)).returning();
 }
 
+  export async function getPayrollRecordById(id: number) {
+    const db = await getDb();
+    if (!db) return null;
+    const results = await db.select().from(payrollRecords).where(eq(payrollRecords.id, id));
+    return results[0] || null;
+  }
+
+  export async function updatePayrollRecord(id: number, data: any) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.update(payrollRecords).set(data).where(eq(payrollRecords.id, id)).returning();
+  }
+
+  export async function deletePayrollRecord(id: number) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.delete(payrollRecords).where(eq(payrollRecords.id, id)).returning();
+  }
+
 // ─── Attendance ───────────────────────────────────────────────────────────────
 export async function getAttendance(filters: { employeeId?: number; date?: string; startDate?: string; endDate?: string } = {}) {
   const db = await getDb();
