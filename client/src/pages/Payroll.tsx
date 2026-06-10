@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, DollarSign, FileText } from "lucide-react";
+import { Plus, DollarSign, FileText, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -25,6 +25,9 @@ export default function Payroll() {
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [salaryForm, setSalaryForm] = useState({ basicSalary:"", housingAllowance:"", transportAllowance:"", otherAllowances:"", gosiPercentage:"0", otherDeductions:"", currency:"SAR" });
   const [genForm, setGenForm] = useState({ employeeId:"", bonus:"", notes:"" });
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editRecordId, setEditRecordId] = useState<number|null>(null);
+    const [editForm, setEditForm] = useState({ bonus:"", notes:"" });
   const utils = trpc.useUtils();
 
   const { data: payroll = [], isLoading } = trpc.payroll.list.useQuery({ month: Number(monthFilter), year: Number(yearFilter) });
@@ -43,6 +46,14 @@ export default function Payroll() {
     onSuccess: () => { utils.payroll.list.invalidate(); toast.success("Status updated"); },
     onError: (e) => toast.error(e.message),
   });
+    const editPayroll = trpc.payroll.edit.useMutation({
+      onSuccess: () => { utils.payroll.list.invalidate(); toast.success("Payroll updated"); setEditDialogOpen(false); },
+      onError: (e) => toast.error(e.message),
+    });
+    const deletePayroll = trpc.payroll.delete.useMutation({
+      onSuccess: () => { utils.payroll.list.invalidate(); toast.success("Payroll record deleted"); },
+      onError: (e) => toast.error(e.message),
+    });
 
   const openSalaryDialog = (empId: string) => {
     setSelectedEmpId(empId);
@@ -52,7 +63,13 @@ export default function Payroll() {
     setSalaryDialogOpen(true);
   };
 
-  const totalPayroll = payroll.reduce((sum: number, p: any) => sum + Number(p.netSalary||0), 0);
+  const openEditDialog = (record: any) => {
+      setEditRecordId(record.id);
+      setEditForm({ bonus:String(record.bonus||"0"), notes:record.notes||"" });
+      setEditDialogOpen(true);
+    };
+
+    const totalPayroll = payroll.reduce((sum: number, p: any) => sum + Number(p.netSalary||0), 0);
 
   return (
     <div className="p-4 lg:p-6">
@@ -129,9 +146,16 @@ export default function Payroll() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        {p.status==="draft" && <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={()=>updateStatus.mutate({id:p.id,status:"approved"})}>{t("payroll.approve")}</Button>}
-                        {p.status==="approved" && <Button size="sm" className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700" onClick={()=>updateStatus.mutate({id:p.id,status:"paid"})}>{t("payroll.markPaid")}</Button>}
-                      </div>
+                          {p.status==="draft" && <>
+                            <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={()=>openEditDialog(p)}><Pencil size={12}/></Button>
+                            <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-red-500 border-red-200 hover:bg-red-50" onClick={()=>deletePayroll.mutate({id:p.id})}><Trash2 size={12}/></Button>
+                            <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={()=>updateStatus.mutate({id:p.id,status:"approved"})}>{t("payroll.approve")}</Button>
+                          </>}
+                          {p.status==="approved" && <>
+                            <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-slate-600" onClick={()=>updateStatus.mutate({id:p.id,status:"draft"})}>Unapprove</Button>
+                            <Button size="sm" className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700" onClick={()=>updateStatus.mutate({id:p.id,status:"paid"})}>{t("payroll.markPaid")}</Button>
+                          </>}
+                        </div>
                     </td>
                   </tr>
                 );
@@ -195,7 +219,28 @@ export default function Payroll() {
         </DialogContent>
       </Dialog>
 
-      {/* Generate Payroll Dialog */}
+      {/* Edit Payroll Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Edit Payroll Record</DialogTitle></DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1">
+                <Label className="text-xs">{t("payroll.bonus")}</Label>
+                <Input type="number" value={editForm.bonus} onChange={e=>setEditForm({...editForm,bonus:e.target.value})} className="h-8 text-sm"/>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Notes</Label>
+                <Input value={editForm.notes} onChange={e=>setEditForm({...editForm,notes:e.target.value})} className="h-8 text-sm"/>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={()=>setEditDialogOpen(false)}>{t("common.cancel")}</Button>
+              <Button onClick={()=>editPayroll.mutate({ id:editRecordId!, bonus:Number(editForm.bonus)||0, notes:editForm.notes })} disabled={editPayroll.isPending}>{t("common.save")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Generate Payroll Dialog */}
       <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>{t("payroll.generate")}</DialogTitle></DialogHeader>
