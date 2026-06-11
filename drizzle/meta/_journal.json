@@ -8,6 +8,13 @@
       "when": 1780802163845,
       "tag": "0000_cooing_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781136000000,
+      "tag": "0001_dept_direct_manager",
+      "breakpoints": true
     }
   ]
 }
