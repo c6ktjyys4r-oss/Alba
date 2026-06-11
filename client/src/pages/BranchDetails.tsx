@@ -15,13 +15,10 @@ import { useParams, useLocation } from "wouter";
      *   1. erpRole === "branch_manager"
      *   2. jobTitle contains "branch manager" or Arabic equivalents
      *   3. Employee full name matches branch.managerName (at least 2 significant words)
-     *
-     * Signal 3 catches employees imported with erpRole="employee" and no matching jobTitle
-     * but whose name was entered in the branch's Manager field.
      */
     function identifyBranchManagerIds(empList: any[], branch: any): Set<number> {
       const ids = new Set<number>();
-      const mgrName = (branch?.managerName || "").toLowerCase().trim();
+      const mgrName  = (branch?.managerName || "").toLowerCase().trim();
       const mgrWords = mgrName.split(/\s+/).filter((w: string) => w.length >= 3);
 
       for (const emp of empList) {
@@ -36,7 +33,6 @@ import { useParams, useLocation } from "wouter";
           title.includes("مدير الفرع")
         ) { ids.add(emp.id); continue; }
 
-        // Name match: at least 2 of the branch.managerName words must appear in emp full name
         if (mgrWords.length >= 2) {
           const empName  = `${emp.firstName || ""} ${emp.lastName || ""}`.toLowerCase();
           const empWords = empName.split(/\s+/).filter((w: string) => w.length >= 3);
@@ -47,18 +43,11 @@ import { useParams, useLocation } from "wouter";
       return ids;
     }
 
-    /**
-     * Classification (called AFTER branchMgrIds is built).
-     * Priority:
-     *   1. ID in branchMgrIds             → Branch Manager
-     *   2. Department name lookup          → Nursing / Doctors / Administrative
-     *   3. Job-title keyword fallback      → remaining roles
-     */
     function classifyEmployee(emp: any, departments: any[], branchMgrIds: Set<number>): GroupName {
       if (branchMgrIds.has(emp.id)) return "Branch Manager";
 
       if (emp.departmentId) {
-        const dept    = departments.find((d: any) => d.id === emp.departmentId);
+        const dept     = departments.find((d: any) => d.id === emp.departmentId);
         const combined = ((dept?.name || "") + " " + (dept?.nameAr || "")).toLowerCase();
 
         if (combined.includes("nursing") || combined.includes("تمريض")) return "Nursing Staff";
@@ -94,7 +83,6 @@ import { useParams, useLocation } from "wouter";
       return lastFirst ? `${first} ${lastFirst}` : first;
     }
 
-    /** Find the single department that best matches a visual group. */
     function findDeptForGroup(groupName: GroupName, departments: any[]): any | null {
       if (groupName === "Nursing Staff") {
         return departments.find((d) => {
@@ -115,7 +103,7 @@ import { useParams, useLocation } from "wouter";
       }
       if (groupName === "Administrative Staff") {
         return departments.find((d) => {
-          const n = ((d.name || "") + " " + (d.nameAr || "")).toLowerCase();
+          const n        = ((d.name || "") + " " + (d.nameAr || "")).toLowerCase();
           const isNursing = n.includes("nursing") || n.includes("تمريض");
           const isDoctors =
             n.includes("dental")    || n.includes("دنتال") ||
@@ -134,11 +122,21 @@ import { useParams, useLocation } from "wouter";
       return "bg-slate-100 text-slate-500 border border-slate-200";
     }
 
+    /** Small gold star badge wrapping a first name. */
+    function StarName({ name }: { name: string }) {
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full text-xs">
+          <span className="text-[11px] leading-none">⭐</span>
+          {name}
+        </span>
+      );
+    }
+
     export default function BranchDetails() {
       const params = useParams<{ id: string }>();
       const [, setLocation] = useLocation();
       const branchId = Number(params.id);
-      const utils = trpc.useUtils();
+      const utils    = trpc.useUtils();
 
       const { data: branch, isLoading: loadBranch } = trpc.branch.getById.useQuery(
         { id: branchId }, { enabled: !!branchId }
@@ -170,13 +168,11 @@ import { useParams, useLocation } from "wouter";
 
       if (!branch) return <div className="p-6 text-slate-400">Branch not found.</div>;
 
-      const empList  = employees  as any[];
+      const empList  = employees   as any[];
       const deptList = departments as any[];
 
-      // ── Step 1: identify Branch Managers using all available signals ──────────
       const branchMgrIds = identifyBranchManagerIds(empList, branch);
 
-      // ── Step 2: group every employee into exactly one bucket ──────────────────
       const grouped: Record<GroupName, any[]> = {
         "Branch Manager":       [],
         "Administrative Staff": [],
@@ -189,7 +185,6 @@ import { useParams, useLocation } from "wouter";
 
       return (
         <div className="p-4 lg:p-6 space-y-6">
-          {/* ── Back ── */}
           <Button
             variant="ghost" size="sm"
             className="gap-1.5 text-slate-500 -ml-2"
@@ -198,7 +193,6 @@ import { useParams, useLocation } from "wouter";
             <ChevronLeft size={16} /> Back to Branches
           </Button>
 
-          {/* ── Branch header ── */}
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{branch.name}</h1>
             {(branch as any).nameAr && (
@@ -206,7 +200,6 @@ import { useParams, useLocation } from "wouter";
             )}
           </div>
 
-          {/* ── Summary cards ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { icon: <User2 size={16} className="text-blue-600" />,   bg: "bg-blue-50",   label: "Manager",        value: (branch as any).managerName || "—" },
@@ -226,7 +219,6 @@ import { useParams, useLocation } from "wouter";
             ))}
           </div>
 
-          {/* ── Employee groups ── */}
           {empList.length === 0 ? (
             <div className="py-16 text-center text-slate-400">
               <Users size={40} className="mx-auto mb-3 opacity-30" />
@@ -241,31 +233,28 @@ import { useParams, useLocation } from "wouter";
                 const isMgr     = groupName === "Branch Manager";
                 const isDoctors = groupName === "Doctors";
 
-                // ── Find the department record for this visual group ──────────
                 const dept = findDeptForGroup(groupName, deptList);
 
-                // ── Direct Manager value ──────────────────────────────────────
-                // Doctors: always the Branch Manager (auto, read-only)
-                // Others:  stored in dept.directManagerId
+                // ── Direct Manager current value ─────────────────────────────
+                // Doctors: always the Branch Manager (auto-assigned, read-only).
+                // Others: pulled from dept.directManagerId.
                 const directMgrId: number | null = isDoctors
                   ? (branchManager?.id ?? null)
                   : (dept?.directManagerId ?? null);
 
-                // ── Dropdown candidates (Issues 3 & 4) ───────────────────────
-                // Filter strictly by the department's actual ID so only employees
-                // from that specific department appear — not the whole visual group.
-                // Branch Manager is always appended as a selectable option.
-                // Doctors get no dropdown at all.
+                // ── Dropdown candidates ──────────────────────────────────────
+                // Only same-department employees (by actual departmentId).
+                // Branch Managers are EXCLUDED — they are not department supervisors.
                 const deptMembers = (!isDoctors && dept)
                   ? empList.filter(
                       (e) => e.departmentId === dept.id && !branchMgrIds.has(e.id)
                     )
                   : [];
 
-                const dropdownOptions: any[] = [
-                  ...deptMembers,
-                  ...(branchManager ? [branchManager] : []),
-                ];
+                // Currently selected manager (for the display badge)
+                const selectedMgr = directMgrId
+                  ? empList.find((e) => e.id === directMgrId) ?? null
+                  : null;
 
                 return (
                   <section key={groupName}>
@@ -286,46 +275,47 @@ import { useParams, useLocation } from "wouter";
                       </span>
                     </div>
 
-                    {/* ── Direct Manager row (all groups except Branch Manager) ── */}
+                    {/* ── Direct Manager bar (skip for Branch Manager group) ── */}
                     {!isMgr && (
-                      <div className="flex items-center gap-2 mb-4 text-xs">
-                        <UserCheck size={13} className={isDoctors ? "text-amber-500" : "text-slate-400"} />
+                      <div className="flex items-center gap-2 mb-4 text-xs flex-wrap">
+                        <UserCheck size={13} className="text-slate-400 shrink-0" />
                         <span className="text-slate-500 shrink-0">Direct Manager:</span>
 
                         {isDoctors ? (
-                          /* Doctors: read-only — always the Branch Manager */
+                          /* Doctors — read-only, always Branch Manager */
                           branchManager ? (
-                            <span className="inline-flex items-center gap-1 font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                              <Crown size={10} className="text-amber-500" />
-                              {shortName(branchManager.firstName, branchManager.lastName)}
-                              <span className="text-amber-400 font-normal">· Branch Manager</span>
-                            </span>
+                            <StarName name={branchManager.firstName} />
                           ) : (
                             <span className="text-slate-400 italic">No Branch Manager assigned</span>
                           )
                         ) : dept ? (
-                          /* Administrative / Nursing: editable dropdown */
-                          <select
-                            className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100 max-w-[240px]"
-                            value={directMgrId ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              updateDept.mutate({
-                                id: dept.id,
-                                directManagerId: val ? Number(val) : null,
-                              });
-                            }}
-                          >
-                            <option value="">— Not assigned —</option>
-                            {dropdownOptions.map((e) => (
-                              <option key={e.id} value={e.id}>
-                                {e.firstName} {e.lastName}
-                                {branchMgrIds.has(e.id)
-                                  ? " (Branch Manager)"
-                                  : e.jobTitle ? ` (${e.jobTitle})` : ""}
-                              </option>
-                            ))}
-                          </select>
+                          /* Administrative / Nursing — display badge + change dropdown */
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {selectedMgr ? (
+                              <StarName name={selectedMgr.firstName} />
+                            ) : (
+                              <span className="text-slate-400 italic">Not assigned</span>
+                            )}
+                            <select
+                              className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100"
+                              value={directMgrId ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                updateDept.mutate({
+                                  id: dept.id,
+                                  directManagerId: val ? Number(val) : null,
+                                });
+                              }}
+                            >
+                              <option value="">— Change —</option>
+                              {deptMembers.map((e) => (
+                                <option key={e.id} value={e.id}>
+                                  {e.firstName} {e.lastName}
+                                  {e.jobTitle ? ` · ${e.jobTitle}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         ) : (
                           <span className="text-slate-400 italic text-[11px]">No department matched</span>
                         )}
@@ -353,7 +343,6 @@ import { useParams, useLocation } from "wouter";
                             )}
                           >
                             <div className="flex items-start gap-3">
-                              {/* Avatar */}
                               <div className={cn(
                                 "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
                                 isMgr ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
@@ -362,7 +351,6 @@ import { useParams, useLocation } from "wouter";
                                 {(emp.lastName  || "")[0]}
                               </div>
 
-                              {/* Details */}
                               <div className="min-w-0 flex-1">
                                 <p
                                   title={`${emp.firstName} ${emp.lastName}`}
@@ -370,8 +358,6 @@ import { useParams, useLocation } from "wouter";
                                 >
                                   {shortName(emp.firstName, emp.lastName)}
                                 </p>
-
-                                {/* Branch Manager: show only role label (no job title / dept) */}
                                 {isMgr ? (
                                   <p className="text-xs text-amber-600 font-medium mt-0.5">Branch Manager</p>
                                 ) : (
@@ -382,7 +368,6 @@ import { useParams, useLocation } from "wouter";
                                 )}
                               </div>
 
-                              {/* Status badge */}
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 mt-0.5 ${statusClasses(emp.status)}`}>
                                 {emp.status}
                               </span>
