@@ -475,3 +475,70 @@ export async function createTaskComment(data: any) {
   if (!db) throw new Error("DB not available");
   return db.insert(taskComments).values(data).returning();
 }
+
+  // ─── Departments (update) ─────────────────────────────────────────────────────
+  export async function updateDepartment(id: number, data: any) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    // Remove undefined keys so we don't overwrite columns we didn't touch
+    const clean: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (v !== undefined) clean[k] = v;
+    }
+    return db.update(departments).set(clean).where(eq(departments.id, id)).returning();
+  }
+
+  // ─── Dashboard Statistics ─────────────────────────────────────────────────────
+  export async function getDashboardStats() {
+    try {
+      const now = new Date();
+      const today = now.toISOString().split("T")[0];
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString().split("T")[0];
+      const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+        .toISOString().split("T")[0];
+
+      const [activeEmps, allContracts, allTasks, todayAttend, monthRevs, monthExps, lowStockItems] =
+        await Promise.all([
+          getEmployees({ status: "active" }),
+          getContracts({}),
+          getTasks({}),
+          getAttendance({ date: today }),
+          getRevenues({ startDate: monthStart, endDate: today }),
+          getExpenses({ startDate: monthStart, endDate: today }),
+          getInventoryItems({ lowStock: true }),
+        ]);
+
+      const contracts   = (allContracts   || []) as any[];
+      const tasks       = (allTasks       || []) as any[];
+      const attendToday = (todayAttend    || []) as any[];
+      const revs        = (monthRevs      || []) as any[];
+      const exps        = (monthExps      || []) as any[];
+
+      const monthRevenue  = revs.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      const monthExpenses = exps.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
+
+      return {
+        totalEmployees:    ((activeEmps || []) as any[]).length,
+        activeContracts:   contracts.filter((c: any) => c.status === "active").length,
+        expiringContracts: contracts.filter(
+          (c: any) => c.status === "active" && c.endDate && c.endDate <= thirtyDaysLater
+        ).length,
+        todayAttendance: attendToday.length,
+        lateToday:       attendToday.filter((a: any) => a.status === "late").length,
+        overdueTasks:    tasks.filter((t: any) => t.status === "overdue").length,
+        lowStockCount:   ((lowStockItems || []) as any[]).length,
+        monthRevenue,
+        monthExpenses,
+        netProfit: monthRevenue - monthExpenses,
+      };
+    } catch (err) {
+      console.error("[getDashboardStats]", err);
+      return {
+        totalEmployees: 0, activeContracts: 0, expiringContracts: 0,
+        todayAttendance: 0, lateToday: 0, overdueTasks: 0,
+        lowStockCount: 0, monthRevenue: 0, monthExpenses: 0, netProfit: 0,
+      };
+    }
+  }
+  
