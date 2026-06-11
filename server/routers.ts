@@ -568,7 +568,8 @@ const importRouter = router({
   // ─── Employee Self-Service Portal ────────────────────────────────────────────
   const EMP_COOKIE = "emp_session";
 
-login: publicProcedure.input(z.object({
+  const empPortalRouter = router({
+    login: publicProcedure.input(z.object({
         username: z.string().min(1),
         password: z.string().min(1),
       })).mutation(async ({ input, ctx }) => {
@@ -588,8 +589,7 @@ login: publicProcedure.input(z.object({
         ctx.res.cookie(EMP_COOKIE, token, { ...opts, maxAge: ONE_YEAR_MS });
         const employee = await db.getEmployeeById(cred.employeeId);
         return { success: true, employee, mustChangePassword: cred.mustChangePassword };
-      }),mployeeById(cred.employeeId) };
-    }),
+      }),
 
     logout: empProtectedProcedure.mutation(({ ctx }) => {
       const opts = getSessionCookieOptions(ctx.req);
@@ -712,7 +712,7 @@ login: publicProcedure.input(z.object({
         await db.changeEmployeePassword(ctx.empEmployeeId, input.newPassword);
         return { success: true };
       }),
-    });
+
   // ─── Manager Approval Portal ──────────────────────────────────────────────────
   const empManagerRouter = router({
     teamRequests: empProtectedProcedure.query(({ ctx }) =>
