@@ -23,6 +23,7 @@ import {
     empNotifications,
   } from "../drizzle/schema";
 import { eq, and, or, like, desc, asc, sql } from "drizzle-orm";
+import { pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -569,7 +570,63 @@ export async function createTaskComment(data: any) {
     return db.select({ employeeId: employeeCredentials.employeeId, username: employeeCredentials.username, isActive: employeeCredentials.isActive, lastLoginAt: employeeCredentials.lastLoginAt }).from(employeeCredentials);
   }
 
-  // ─── Leave Balances ───────────────────────────────────────────────────────────
+
+    export function hashPassword(plain: string): string {
+      const salt = randomBytes(16).toString("hex");
+      const hash = pbkdf2Sync(plain, salt, 100_000, 64, "sha512").toString("hex");
+      return `pbkdf2:${salt}:${hash}`;
+    }
+
+    export function verifyPassword(plain: string, stored: string): boolean {
+      if (!stored.startsWith("pbkdf2:")) return plain === stored;
+      const [, salt, hash] = stored.split(":");
+      const candidate = pbkdf2Sync(plain, salt, 100_000, 64, "sha512");
+      return timingSafeEqual(Buffer.from(hash, "hex"), candidate);
+    }
+
+    export async function getEmployeeCredentialByEmpId(employeeId: number) {
+      const db = await getDb();
+      if (!db) return null;
+      const r = await db.select().from(employeeCredentials).where(eq(employeeCredentials.employeeId, employeeId));
+      return r[0] || null;
+    }
+
+    export async function changeEmployeePassword(employeeId: number, newPlain: string) {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      return db.update(employeeCredentials)
+        .set({ passwordHash: hashPassword(newPlain), mustChangePassword: false, updatedAt: new Date() })
+        .where(eq(employeeCredentials.employeeId, employeeId))
+        .returning();
+    }
+
+    export async function provisionAllEmployeeCredentials(): Promise<{ provisioned: number; skipped: number; errors: string[] }> {
+      const db = await getDb();
+      if (!db) throw new Error("DB not available");
+      const allEmps = await db.select().from(employees).where(eq(employees.status, "active"));
+      const existing = await db.select({ employeeId: employeeCredentials.employeeId }).from(employeeCredentials);
+      const existingSet = new Set(existing.map((c: any) => c.employeeId));
+      let provisioned = 0, skipped = 0;
+      const errors: string[] = [];
+      for (const emp of allEmps) {
+        if (existingSet.has(emp.id)) { skipped++; continue; }
+        if (!emp.nationalId?.trim()) { skipped++; continue; }
+        const username = emp.nationalId.trim();
+        try {
+          await db.insert(employeeCredentials).values({
+            employeeId: emp.id, username,
+            passwordHash: hashPassword(username),
+            isActive: true, mustChangePassword: true,
+          });
+          provisioned++;
+        } catch (err: any) {
+          errors.push(`${emp.firstName} ${emp.lastName}: ${err.message}`);
+        }
+      }
+      return { provisioned, skipped, errors };
+    }
+
+    // ─── Leave Balances ───────────────────────────────────────────────────────────
   export async function getLeaveBalance(employeeId: number, year: number) {
     const db = await getDb();
     if (!db) return null;

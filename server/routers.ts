@@ -573,7 +573,7 @@ const importRouter = router({
       password: z.string().min(1),
     })).mutation(async ({ input, ctx }) => {
       const cred = await db.getEmployeeCredential(input.username);
-      if (!cred || cred.passwordHash !== input.password || !cred.isActive) {
+      if (!cred || !db.verifyPassword(input.password, cred.passwordHash) || !cred.isActive) {
         throw new Error("Invalid username or password");
       }
       await db.updateEmployeeCredential(cred.employeeId, { lastLoginAt: new Date() });
@@ -586,7 +586,7 @@ const importRouter = router({
 
       const opts = getSessionCookieOptions(ctx.req);
       ctx.res.cookie(EMP_COOKIE, token, { ...opts, maxAge: ONE_YEAR_MS });
-      return { success: true, employee: await db.getEmployeeById(cred.employeeId) };
+      return { success: true, mustChangePassword: cred.mustChangePassword ?? false, employee: await db.getEmployeeById(cred.employeeId) };
     }),
 
     logout: empProtectedProcedure.mutation(({ ctx }) => {
@@ -687,11 +687,20 @@ const importRouter = router({
       username: z.string().min(1),
       password: z.string().min(1),
     })).mutation(({ input }) =>
-      db.createEmployeeCredential({ employeeId: input.employeeId, username: input.username, passwordHash: input.password })
+      db.createEmployeeCredential({ employeeId: input.employeeId, username: input.username, passwordHash: db.hashPassword(input.password) })
     ),
 
     listCredentials: protectedProcedure.query(() => db.listEmployeeCredentials()),
-  });
+
+      provisionAll: protectedProcedure.mutation(() => db.provisionAllEmployeeCredentials()),
+
+      changePassword: empProtectedProcedure.input(z.object({
+        newPassword: z.string().min(8),
+      })).mutation(async ({ input, ctx }) => {
+        await db.changeEmployeePassword(ctx.empEmployeeId, input.newPassword);
+        return { success: true };
+      }),
+    });
 
   // ─── Manager Approval Portal ──────────────────────────────────────────────────
   const empManagerRouter = router({
