@@ -95,7 +95,14 @@ export async function deleteBranch(id: number) {
   return db.delete(branches).where(eq(branches.id, id));
 }
 
-// ─── Departments ─────────────────────────────────────────────────────────────
+export async function getBranchById(id: number) {
+    const db = await getDb();
+    if (!db) return null;
+    const [branch] = await db.select().from(branches).where(eq(branches.id, id)).limit(1);
+    return branch ?? null;
+  }
+
+  // ─── Departments ─────────────────────────────────────────────────────────────
 export async function getDepartments(branchId?: number) {
   const db = await getDb();
   if (!db) return [];
