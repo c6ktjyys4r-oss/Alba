@@ -49,6 +49,7 @@ export const departments = pgTable("departments", {
   name: varchar("name", { length: 255 }).notNull(),
   nameAr: varchar("nameAr", { length: 255 }),
   branchId: integer("branchId"),
+  directManagerId: integer("directManagerId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
