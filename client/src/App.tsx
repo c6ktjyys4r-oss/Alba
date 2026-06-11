@@ -103,7 +103,7 @@ import { Toaster } from "@/components/ui/sonner";
 
         {/* Employee Self-Service Portal */}
         <Route path="/emp/login" component={PortalLogin} />
-        <Route path="/emp/change-password" component={ChangePassword} />
+        <Route path="/emp/change-password" component={() => <EmpPortalRoute component={ChangePassword} />} />
         <Route path="/emp/requests/new" component={() => <EmpPortalRoute component={PortalNewRequest} />} />
         <Route path="/emp/requests" component={() => <EmpPortalRoute component={PortalRequests} />} />
         <Route path="/emp/notifications" component={() => <EmpPortalRoute component={PortalNotifications} />} />
