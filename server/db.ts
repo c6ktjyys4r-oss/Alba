@@ -17,7 +17,11 @@ import {
   inventoryTransactions,
   tasks,
   taskComments,
-} from "../drizzle/schema";
+  employeeCredentials,
+    leaveBalances,
+    employeeRequests,
+    empNotifications,
+  } from "../drizzle/schema";
 import { eq, and, or, like, desc, asc, sql } from "drizzle-orm";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -540,5 +544,99 @@ export async function createTaskComment(data: any) {
         lowStockCount: 0, monthRevenue: 0, monthExpenses: 0, netProfit: 0,
       };
     }
+  }
+
+  // ─── Employee Credentials ─────────────────────────────────────────────────────
+  export async function getEmployeeCredential(username: string) {
+    const db = await getDb();
+    if (!db) return null;
+    const r = await db.select().from(employeeCredentials).where(eq(employeeCredentials.username, username));
+    return r[0] || null;
+  }
+  export async function createEmployeeCredential(data: { employeeId: number; username: string; passwordHash: string }) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.insert(employeeCredentials).values(data).returning();
+  }
+  export async function updateEmployeeCredential(employeeId: number, data: any) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.update(employeeCredentials).set({ ...data, updatedAt: new Date() }).where(eq(employeeCredentials.employeeId, employeeId)).returning();
+  }
+  export async function listEmployeeCredentials() {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select({ employeeId: employeeCredentials.employeeId, username: employeeCredentials.username, isActive: employeeCredentials.isActive, lastLoginAt: employeeCredentials.lastLoginAt }).from(employeeCredentials);
+  }
+
+  // ─── Leave Balances ───────────────────────────────────────────────────────────
+  export async function getLeaveBalance(employeeId: number, year: number) {
+    const db = await getDb();
+    if (!db) return null;
+    const r = await db.select().from(leaveBalances).where(and(eq(leaveBalances.employeeId, employeeId), eq(leaveBalances.year, year)));
+    return r[0] || null;
+  }
+  export async function upsertLeaveBalance(data: { employeeId: number; year: number; annualDaysTotal?: number; annualDaysUsed?: number; sickDaysUsed?: number }) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    const existing = await getLeaveBalance(data.employeeId, data.year);
+    if (existing) {
+      const upd: any = { updatedAt: new Date() };
+      if (data.annualDaysTotal !== undefined) upd.annualDaysTotal = data.annualDaysTotal;
+      if (data.annualDaysUsed  !== undefined) upd.annualDaysUsed  = data.annualDaysUsed;
+      if (data.sickDaysUsed    !== undefined) upd.sickDaysUsed    = data.sickDaysUsed;
+      return db.update(leaveBalances).set(upd).where(and(eq(leaveBalances.employeeId, data.employeeId), eq(leaveBalances.year, data.year))).returning();
+    }
+    return db.insert(leaveBalances).values({ employeeId: data.employeeId, year: data.year, annualDaysTotal: data.annualDaysTotal ?? 21, annualDaysUsed: data.annualDaysUsed ?? 0, sickDaysUsed: data.sickDaysUsed ?? 0 }).returning();
+  }
+
+  // ─── Employee Requests ────────────────────────────────────────────────────────
+  export async function createEmployeeRequest(data: any) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.insert(employeeRequests).values(data).returning();
+  }
+  export async function getEmployeeRequests(employeeId: number) {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(employeeRequests).where(eq(employeeRequests.employeeId, employeeId)).orderBy(desc(employeeRequests.createdAt));
+  }
+  export async function getManagerRequests(managerId: number) {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(employeeRequests).where(eq(employeeRequests.managerId, managerId)).orderBy(desc(employeeRequests.createdAt));
+  }
+  export async function getRequestById(id: number) {
+    const db = await getDb();
+    if (!db) return null;
+    const r = await db.select().from(employeeRequests).where(eq(employeeRequests.id, id));
+    return r[0] || null;
+  }
+  export async function updateEmployeeRequest(id: number, data: { status: "approved" | "rejected"; managerComment?: string | null; reviewedBy: number }) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.update(employeeRequests).set({ status: data.status, managerComment: data.managerComment ?? null, reviewedBy: data.reviewedBy, reviewedAt: new Date(), updatedAt: new Date() }).where(eq(employeeRequests.id, id)).returning();
+  }
+
+  // ─── Employee Notifications ───────────────────────────────────────────────────
+  export async function createEmpNotification(data: { recipientEmployeeId: number; senderEmployeeId?: number; requestId?: number; type: string; message: string }) {
+    const db = await getDb();
+    if (!db) return null;
+    return db.insert(empNotifications).values(data as any).returning();
+  }
+  export async function getEmpNotifications(employeeId: number) {
+    const db = await getDb();
+    if (!db) return [];
+    return db.select().from(empNotifications).where(eq(empNotifications.recipientEmployeeId, employeeId)).orderBy(desc(empNotifications.createdAt));
+  }
+  export async function markEmpNotificationRead(id: number, employeeId: number) {
+    const db = await getDb();
+    if (!db) return null;
+    return db.update(empNotifications).set({ isRead: true }).where(and(eq(empNotifications.id, id), eq(empNotifications.recipientEmployeeId, employeeId))).returning();
+  }
+  export async function markAllEmpNotificationsRead(employeeId: number) {
+    const db = await getDb();
+    if (!db) return null;
+    return db.update(empNotifications).set({ isRead: true }).where(eq(empNotifications.recipientEmployeeId, employeeId)).returning();
   }
   

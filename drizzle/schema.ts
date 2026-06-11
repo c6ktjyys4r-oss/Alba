@@ -279,3 +279,70 @@ export const taskComments = pgTable("task_comments", {
 });
 
 export type TaskComment = typeof taskComments.$inferSelect;
+
+  // ─── Employee Credentials (Self-Service Portal) ───────────────────────────────
+  export const employeeCredentials = pgTable("employee_credentials", {
+    id: serial("id").primaryKey(),
+    employeeId: integer("employeeId").notNull().unique(),
+    username: varchar("username", { length: 100 }).notNull().unique(),
+    passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+    isActive: boolean("isActive").default(true).notNull(),
+    lastLoginAt: timestamp("lastLoginAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  });
+  export type EmployeeCredential = typeof employeeCredentials.$inferSelect;
+
+  // ─── Leave Balances ───────────────────────────────────────────────────────────
+  export const leaveBalances = pgTable("leave_balances", {
+    id: serial("id").primaryKey(),
+    employeeId: integer("employeeId").notNull(),
+    year: integer("year").notNull(),
+    annualDaysTotal: integer("annualDaysTotal").default(21).notNull(),
+    annualDaysUsed: integer("annualDaysUsed").default(0).notNull(),
+    sickDaysUsed: integer("sickDaysUsed").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  });
+  export type LeaveBalance = typeof leaveBalances.$inferSelect;
+
+  // ─── Employee Requests ────────────────────────────────────────────────────────
+  export const employeeRequests = pgTable("employee_requests", {
+    id: serial("id").primaryKey(),
+    employeeId: integer("employeeId").notNull(),
+    managerId: integer("managerId"),
+    type: text("type").$type<"annual_leave" | "sick_leave" | "late_arrival" | "early_exit">().notNull(),
+    status: text("status").$type<"pending" | "approved" | "rejected">().default("pending").notNull(),
+    startDate: date("startDate"),
+    endDate: date("endDate"),
+    requestedDate: date("requestedDate"),
+    requestedTime: varchar("requestedTime", { length: 10 }),
+    shiftStartTime: varchar("shiftStartTime", { length: 10 }),
+    reason: text("reason"),
+    attachmentUrl: text("attachmentUrl"),
+    attachmentKey: varchar("attachmentKey", { length: 500 }),
+    daysRequested: integer("daysRequested"),
+    managerComment: text("managerComment"),
+    reviewedAt: timestamp("reviewedAt"),
+    reviewedBy: integer("reviewedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  });
+  export type EmployeeRequest = typeof employeeRequests.$inferSelect;
+
+  // ─── Employee Notifications ───────────────────────────────────────────────────
+  export const empNotifications = pgTable("emp_notifications", {
+    id: serial("id").primaryKey(),
+    recipientEmployeeId: integer("recipientEmployeeId").notNull(),
+    senderEmployeeId: integer("senderEmployeeId"),
+    requestId: integer("requestId"),
+    type: text("type").$type<"request_submitted" | "request_approved" | "request_rejected" | "request_comment">().notNull(),
+    message: text("message").notNull(),
+    isRead: boolean("isRead").default(false).notNull(),
+    sentViaEmail: boolean("sentViaEmail").default(false),
+    sentViaWhatsapp: boolean("sentViaWhatsapp").default(false),
+    sentViaSms: boolean("sentViaSms").default(false),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  });
+  export type EmpNotification = typeof empNotifications.$inferSelect;
+  

@@ -15,6 +15,13 @@
       "when": 1781136000000,
       "tag": "0001_dept_direct_manager",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781204808345,
+      "tag": "0002_emp_portal",
+      "breakpoints": true
     }
   ]
 }

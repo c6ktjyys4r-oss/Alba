@@ -1,11 +1,13 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { localAuth } from "./_core/localAuth";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router, empProtectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
+  import { SignJWT } from "jose";
+  import { ENV } from "./_core/env";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 
@@ -561,6 +563,183 @@ const importRouter = router({
   }),
 });
 
+
+  // ─── Employee Self-Service Portal ────────────────────────────────────────────
+  const EMP_COOKIE = "emp_session";
+
+  const empPortalRouter = router({
+    login: publicProcedure.input(z.object({
+      username: z.string().min(1),
+      password: z.string().min(1),
+    })).mutation(async ({ input, ctx }) => {
+      const cred = await db.getEmployeeCredential(input.username);
+      if (!cred || cred.passwordHash !== input.password || !cred.isActive) {
+        throw new Error("Invalid username or password");
+      }
+      await db.updateEmployeeCredential(cred.employeeId, { lastLoginAt: new Date() });
+
+      const secret = new TextEncoder().encode(ENV.cookieSecret);
+      const token = await new SignJWT({ empEmployeeId: cred.employeeId })
+        .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+        .setExpirationTime(Math.floor((Date.now() + ONE_YEAR_MS) / 1000))
+        .sign(secret);
+
+      const opts = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(EMP_COOKIE, token, { ...opts, maxAge: ONE_YEAR_MS });
+      return { success: true, employee: await db.getEmployeeById(cred.employeeId) };
+    }),
+
+    logout: empProtectedProcedure.mutation(({ ctx }) => {
+      const opts = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(EMP_COOKIE, { ...opts, maxAge: -1 });
+      return { success: true };
+    }),
+
+    me: empProtectedProcedure.query(async ({ ctx }) => {
+      const emp = await db.getEmployeeById(ctx.empEmployeeId);
+      if (!emp) return null;
+      const depts = await db.getDepartments(undefined);
+      const dept = depts?.find((d: any) => d.id === emp.departmentId) ?? null;
+      const isManager = depts?.some((d: any) => d.directManagerId === ctx.empEmployeeId) ?? false;
+      let directManagerEmp = null;
+      if (dept?.directManagerId) {
+        directManagerEmp = await db.getEmployeeById(dept.directManagerId);
+      }
+      return { ...emp, department: dept, directManager: directManagerEmp, isManager };
+    }),
+
+    myLeaveBalance: empProtectedProcedure.query(async ({ ctx }) => {
+      const year = new Date().getFullYear();
+      let bal = await db.getLeaveBalance(ctx.empEmployeeId, year);
+      if (!bal) {
+        const r = await db.upsertLeaveBalance({ employeeId: ctx.empEmployeeId, year });
+        bal = Array.isArray(r) ? r[0] : r;
+      }
+      return bal;
+    }),
+
+    myRequests: empProtectedProcedure.query(({ ctx }) =>
+      db.getEmployeeRequests(ctx.empEmployeeId)
+    ),
+
+    submitRequest: empProtectedProcedure.input(z.object({
+      type: z.enum(["annual_leave", "sick_leave", "late_arrival", "early_exit"]),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      requestedDate: z.string().optional(),
+      requestedTime: z.string().optional(),
+      shiftStartTime: z.string().optional(),
+      reason: z.string().optional(),
+      attachmentUrl: z.string().optional(),
+      attachmentKey: z.string().optional(),
+      daysRequested: z.number().int().positive().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const emp = await db.getEmployeeById(ctx.empEmployeeId);
+      if (!emp) throw new Error("Employee not found");
+      const depts = await db.getDepartments(emp.branchId || undefined);
+      const dept = depts?.find((d: any) => d.id === emp.departmentId);
+      const managerId: number | null = dept?.directManagerId || null;
+
+      const [req] = await db.createEmployeeRequest({ employeeId: ctx.empEmployeeId, managerId, ...input });
+      if (managerId) {
+        const typeName = input.type.replace(/_/g, " ");
+        await db.createEmpNotification({
+          recipientEmployeeId: managerId,
+          senderEmployeeId: ctx.empEmployeeId,
+          requestId: req.id,
+          type: "request_submitted",
+          message: `${emp.firstName} ${emp.lastName} submitted a ${typeName} request`,
+        });
+      }
+      return req;
+    }),
+
+    uploadDocument: empProtectedProcedure.input(z.object({
+      filename: z.string(),
+      contentBase64: z.string(),
+      mimeType: z.string().default("application/octet-stream"),
+    })).mutation(async ({ input }) => {
+      const key = `sick-leave-docs/${nanoid()}-${input.filename}`;
+      const buffer = Buffer.from(input.contentBase64, "base64");
+      try {
+        const result = await storagePut(key, buffer, input.mimeType);
+        return { url: result.url, key: result.key };
+      } catch {
+        // Fallback: return a data URL key for environments without storage
+        return { url: `/api/docs/${key}`, key };
+      }
+    }),
+
+    myNotifications: empProtectedProcedure.query(({ ctx }) =>
+      db.getEmpNotifications(ctx.empEmployeeId)
+    ),
+
+    markNotificationRead: empProtectedProcedure.input(z.object({ id: z.number() }))
+      .mutation(({ ctx, input }) => db.markEmpNotificationRead(input.id, ctx.empEmployeeId)),
+
+    markAllRead: empProtectedProcedure.mutation(({ ctx }) =>
+      db.markAllEmpNotificationsRead(ctx.empEmployeeId)
+    ),
+
+    // Admin-only: create or reset employee portal credentials
+    createCredential: protectedProcedure.input(z.object({
+      employeeId: z.number(),
+      username: z.string().min(1),
+      password: z.string().min(1),
+    })).mutation(({ input }) =>
+      db.createEmployeeCredential({ employeeId: input.employeeId, username: input.username, passwordHash: input.password })
+    ),
+
+    listCredentials: protectedProcedure.query(() => db.listEmployeeCredentials()),
+  });
+
+  // ─── Manager Approval Portal ──────────────────────────────────────────────────
+  const empManagerRouter = router({
+    teamRequests: empProtectedProcedure.query(({ ctx }) =>
+      db.getManagerRequests(ctx.empEmployeeId)
+    ),
+
+    reviewRequest: empProtectedProcedure.input(z.object({
+      requestId: z.number(),
+      status: z.enum(["approved", "rejected"]),
+      comment: z.string().optional(),
+    })).mutation(async ({ input, ctx }) => {
+      const req = await db.getRequestById(input.requestId);
+      if (!req) throw new Error("Request not found");
+      if (req.managerId !== ctx.empEmployeeId) throw new Error("Not authorized to review this request");
+
+      const [updated] = await db.updateEmployeeRequest(input.requestId, {
+        status: input.status,
+        managerComment: input.comment,
+        reviewedBy: ctx.empEmployeeId,
+      });
+
+      // Deduct annual leave balance on approval
+      if (input.status === "approved" && req.type === "annual_leave" && req.daysRequested) {
+        const year = req.startDate ? new Date(req.startDate).getFullYear() : new Date().getFullYear();
+        const bal = await db.getLeaveBalance(req.employeeId, year);
+        if (bal) {
+          await db.upsertLeaveBalance({
+            employeeId: req.employeeId,
+            year,
+            annualDaysUsed: bal.annualDaysUsed + req.daysRequested,
+          });
+        }
+      }
+
+      const typeName = req.type.replace(/_/g, " ");
+      await db.createEmpNotification({
+        recipientEmployeeId: req.employeeId,
+        senderEmployeeId: ctx.empEmployeeId,
+        requestId: req.id,
+        type: input.status === "approved" ? "request_approved" : "request_rejected",
+        message: `Your ${typeName} request has been ${input.status}${input.comment ? `: ${input.comment}` : ""}`,
+      });
+
+      return updated;
+    }),
+  });
+  
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -595,7 +774,9 @@ export const appRouter = router({
   task: taskRouter,
   dashboard: dashboardRouter,
   ai: aiRouter,
-  import: importRouter,
-});
+    import: importRouter,
+    empPortal: empPortalRouter,
+    empManager: empManagerRouter,
+  });
 
 export type AppRouter = typeof appRouter;
