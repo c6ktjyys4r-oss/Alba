@@ -38,7 +38,7 @@ const branchRouter = router({
 const departmentRouter = router({
   list: protectedProcedure.input(z.object({ branchId: z.number().optional() }).optional()).query(({ input }) => db.getDepartments(input?.branchId)),
   create: protectedProcedure.input(z.object({ name: z.string().min(1), nameAr: z.string().optional(), branchId: z.number().optional() })).mutation(({ input }) => db.createDepartment(input)),
-  update: protectedProcedure.input(z.object({ id: z.number(), name: z.string().optional(), nameAr: z.string().optional(), branchId: z.number().optional() })).mutation(({ input }) => { const { id, ...data } = input; return db.updateDepartment(id, data); }),
+  update: protectedProcedure.input(z.object({ id: z.number(), name: z.string().optional(), nameAr: z.string().optional(), branchId: z.number().optional(), directManagerId: z.number().nullable().optional() })).mutation(({ input }) => { const { id, ...data } = input; return db.updateDepartment(id, data); }),
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => db.deleteDepartment(input.id)),
 });
 
