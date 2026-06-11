@@ -2,25 +2,55 @@ import { useParams, useLocation } from "wouter";
   import { trpc } from "@/lib/trpc";
   import { useLanguage } from "@/contexts/LanguageContext";
   import { Button } from "@/components/ui/button";
-  import { ChevronLeft, Building2, MapPin, Phone, User2, Users, Crown, Stethoscope, HeartPulse, Briefcase } from "lucide-react";
+  import { ChevronLeft, MapPin, Phone, User2, Users, Crown, Stethoscope, HeartPulse, Briefcase } from "lucide-react";
   import { cn } from "@/lib/utils";
 
   const GROUP_ORDER = ["Branch Manager", "Administrative Staff", "Doctors", "Nursing Staff"];
 
-  function classifyEmployee(emp: any): string {
-    const title = (emp.jobTitle || "").toLowerCase();
+  /**
+   * Classification priority:
+   * 1. erpRole === "branch_manager"  → Branch Manager  (always wins)
+   * 2. Department name match         → group by dept
+   * 3. Job title keyword fallback    → for employees with no department set
+   */
+  function classifyEmployee(emp: any, departments: any[]): string {
     const role = (emp.erpRole || "").toLowerCase();
-    if (role === "branch_manager" || title.includes("branch manager") || title.includes("مدير فرع") || title.includes("مدير")) return "Branch Manager";
-    if (title.includes("doctor") || title.includes("physician") || title.includes("دكتور") || title.includes("طبيب") || title.includes("specialist")) return "Doctors";
+    if (role === "branch_manager") return "Branch Manager";
+
+    // --- Primary: department name ---
+    if (emp.departmentId) {
+      const dept = departments.find((d: any) => d.id === emp.departmentId);
+      const dname = (dept?.name || "").toLowerCase();
+      const dnameAr = (dept?.nameAr || "").toLowerCase();
+      const combined = dname + " " + dnameAr;
+
+      if (combined.includes("nursing") || combined.includes("تمريض")) return "Nursing Staff";
+      if (
+        combined.includes("dental") || combined.includes("دنتال") ||
+        combined.includes("doctor") || combined.includes("طبيب") ||
+        combined.includes("physician") || combined.includes("clinic") ||
+        combined.includes("medical") || combined.includes("طب")
+      ) return "Doctors";
+      // Any other named department → Administrative Staff
+      return "Administrative Staff";
+    }
+
+    // --- Fallback: job title keywords (no department assigned) ---
+    const title = (emp.jobTitle || "").toLowerCase();
+    if (title.includes("branch manager") || title.includes("مدير فرع")) return "Branch Manager";
     if (title.includes("nurse") || title.includes("nursing") || title.includes("ممرض") || title.includes("تمريض")) return "Nursing Staff";
+    if (
+      title.includes("doctor") || title.includes("physician") ||
+      title.includes("دكتور") || title.includes("طبيب") || title.includes("specialist")
+    ) return "Doctors";
     return "Administrative Staff";
   }
 
   const GROUP_ICON: Record<string, React.ReactNode> = {
-    "Branch Manager": <Crown size={15} className="text-amber-500"/>,
-    "Doctors": <Stethoscope size={15} className="text-blue-500"/>,
-    "Nursing Staff": <HeartPulse size={15} className="text-rose-500"/>,
-    "Administrative Staff": <Briefcase size={15} className="text-slate-500"/>,
+    "Branch Manager":      <Crown size={15} className="text-amber-500"/>,
+    "Doctors":             <Stethoscope size={15} className="text-blue-500"/>,
+    "Nursing Staff":       <HeartPulse size={15} className="text-rose-500"/>,
+    "Administrative Staff":<Briefcase size={15} className="text-slate-500"/>,
   };
 
   export default function BranchDetails() {
@@ -47,8 +77,15 @@ import { useParams, useLocation } from "wouter";
 
     if (!branch) return <div className="p-6 text-slate-400">Branch not found.</div>;
 
-    const grouped: Record<string, any[]> = { "Branch Manager":[], "Administrative Staff":[], "Doctors":[], "Nursing Staff":[] };
-    (employees as any[]).forEach(e => { grouped[classifyEmployee(e)].push(e); });
+    const grouped: Record<string, any[]> = {
+      "Branch Manager": [],
+      "Administrative Staff": [],
+      "Doctors": [],
+      "Nursing Staff": [],
+    };
+    (employees as any[]).forEach(e => {
+      grouped[classifyEmployee(e, departments as any[])].push(e);
+    });
 
     return (
       <div className="p-4 lg:p-6 space-y-6">
