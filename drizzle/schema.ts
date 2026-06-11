@@ -287,6 +287,7 @@ export type TaskComment = typeof taskComments.$inferSelect;
     username: varchar("username", { length: 100 }).notNull().unique(),
     passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
     isActive: boolean("isActive").default(true).notNull(),
+    mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
     lastLoginAt: timestamp("lastLoginAt"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),

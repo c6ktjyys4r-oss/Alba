@@ -5,6 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router, empProtectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
+import { verifyPassword } from "./db";
 import { invokeLLM } from "./_core/llm";
   import { SignJWT } from "jose";
   import { ENV } from "./_core/env";
@@ -567,26 +568,27 @@ const importRouter = router({
   // ─── Employee Self-Service Portal ────────────────────────────────────────────
   const EMP_COOKIE = "emp_session";
 
-  const empPortalRouter = router({
-    login: publicProcedure.input(z.object({
-      username: z.string().min(1),
-      password: z.string().min(1),
-    })).mutation(async ({ input, ctx }) => {
-      const cred = await db.getEmployeeCredential(input.username);
-      if (!cred || cred.passwordHash !== input.password || !cred.isActive) {
-        throw new Error("Invalid username or password");
-      }
-      await db.updateEmployeeCredential(cred.employeeId, { lastLoginAt: new Date() });
+login: publicProcedure.input(z.object({
+        username: z.string().min(1),
+        password: z.string().min(1),
+      })).mutation(async ({ input, ctx }) => {
+        const cred = await db.getEmployeeCredential(input.username);
+        if (!cred || !cred.isActive || !verifyPassword(input.password, cred.passwordHash)) {
+          throw new Error("Invalid username or password");
+        }
+        await db.updateEmployeeCredential(cred.employeeId, { lastLoginAt: new Date() });
 
-      const secret = new TextEncoder().encode(ENV.cookieSecret);
-      const token = await new SignJWT({ empEmployeeId: cred.employeeId })
-        .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-        .setExpirationTime(Math.floor((Date.now() + ONE_YEAR_MS) / 1000))
-        .sign(secret);
+        const secret = new TextEncoder().encode(ENV.cookieSecret);
+        const token = await new SignJWT({ empEmployeeId: cred.employeeId })
+          .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+          .setExpirationTime(Math.floor((Date.now() + ONE_YEAR_MS) / 1000))
+          .sign(secret);
 
-      const opts = getSessionCookieOptions(ctx.req);
-      ctx.res.cookie(EMP_COOKIE, token, { ...opts, maxAge: ONE_YEAR_MS });
-      return { success: true, employee: await db.getEmployeeById(cred.employeeId) };
+        const opts = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(EMP_COOKIE, token, { ...opts, maxAge: ONE_YEAR_MS });
+        const employee = await db.getEmployeeById(cred.employeeId);
+        return { success: true, employee, mustChangePassword: cred.mustChangePassword };
+      }),mployeeById(cred.employeeId) };
     }),
 
     logout: empProtectedProcedure.mutation(({ ctx }) => {
@@ -681,18 +683,36 @@ const importRouter = router({
       db.markAllEmpNotificationsRead(ctx.empEmployeeId)
     ),
 
-    // Admin-only: create or reset employee portal credentials
-    createCredential: protectedProcedure.input(z.object({
-      employeeId: z.number(),
-      username: z.string().min(1),
-      password: z.string().min(1),
-    })).mutation(({ input }) =>
-      db.createEmployeeCredential({ employeeId: input.employeeId, username: input.username, passwordHash: input.password })
-    ),
+    // Admin: create / reset employee portal credentials (password hashed)
+      createCredential: protectedProcedure.input(z.object({
+        employeeId: z.number(),
+        username: z.string().min(1),
+        password: z.string().min(6),
+        mustChangePassword: z.boolean().default(true),
+      })).mutation(({ input }) =>
+        db.createEmployeeCredential({
+          employeeId: input.employeeId,
+          username: input.username,
+          plainPassword: input.password,
+          mustChangePassword: input.mustChangePassword,
+        })
+      ),
 
-    listCredentials: protectedProcedure.query(() => db.listEmployeeCredentials()),
-  });
+      // Admin: auto-provision all employees who have a National ID but no credentials
+      provisionAll: protectedProcedure.mutation(() =>
+        db.provisionAllEmployeeCredentials()
+      ),
 
+      listCredentials: protectedProcedure.query(() => db.listEmployeeCredentials()),
+
+      // Employee: change own password (force-change on first login)
+      changePassword: empProtectedProcedure.input(z.object({
+        newPassword: z.string().min(8, "Password must be at least 8 characters"),
+      })).mutation(async ({ input, ctx }) => {
+        await db.changeEmployeePassword(ctx.empEmployeeId, input.newPassword);
+        return { success: true };
+      }),
+    });
   // ─── Manager Approval Portal ──────────────────────────────────────────────────
   const empManagerRouter = router({
     teamRequests: empProtectedProcedure.query(({ ctx }) =>
