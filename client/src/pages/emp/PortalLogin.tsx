@@ -10,9 +10,9 @@ import { useState } from "react";
     const utils = trpc.useUtils();
 
     const loginMutation = trpc.empPortal.login.useMutation({
-      onSuccess: () => {
+      onSuccess: (data) => {
         utils.empPortal.me.invalidate();
-        navigate("/emp");
+        navigate(data.mustChangePassword ? "/emp/change-password" : "/emp");
       },
       onError: (err) => setError(err.message || "Login failed"),
     });
