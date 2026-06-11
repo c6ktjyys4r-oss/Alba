@@ -30,7 +30,6 @@ import { Toaster } from "@/components/ui/sonner";
 
   // Employee Self-Service Portal
   import PortalLogin from "./pages/emp/PortalLogin";
-  import ChangePassword from "./pages/emp/ChangePassword";
   import PortalDashboard from "./pages/emp/PortalDashboard";
   import PortalRequests from "./pages/emp/PortalRequests";
   import PortalNewRequest from "./pages/emp/PortalNewRequest";
@@ -103,7 +102,6 @@ import { Toaster } from "@/components/ui/sonner";
 
         {/* Employee Self-Service Portal */}
         <Route path="/emp/login" component={PortalLogin} />
-        <Route path="/emp/change-password" component={ChangePassword} />
         <Route path="/emp/requests/new" component={() => <EmpPortalRoute component={PortalNewRequest} />} />
         <Route path="/emp/requests" component={() => <EmpPortalRoute component={PortalRequests} />} />
         <Route path="/emp/notifications" component={() => <EmpPortalRoute component={PortalNotifications} />} />

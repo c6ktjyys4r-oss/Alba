@@ -547,124 +547,143 @@ export async function createTaskComment(data: any) {
     }
   }
 
-  // ─── Password Hashing (PBKDF2 — built-in Node.js crypto) ────────────────────────
-  export function hashPassword(plain: string): string {
-    const salt = randomBytes(16).toString("hex");
-    const hash = pbkdf2Sync(plain, salt, 100_000, 64, "sha512").toString("hex");
-    return `pbkdf2:${salt}:${hash}`;
-  }
-
-  export function verifyPassword(plain: string, stored: string): boolean {
-    if (!stored.startsWith("pbkdf2:")) return plain === stored; // legacy plain-text
-    const [, salt, hash] = stored.split(":");
-    const candidate = pbkdf2Sync(plain, salt, 100_000, 64, "sha512");
-    return timingSafeEqual(Buffer.from(hash, "hex"), candidate);
-  }
-
   // ─── Employee Credentials ─────────────────────────────────────────────────────
   export async function getEmployeeCredential(username: string) {
-    const d = await getDb();
-    if (!d) return null;
-    const r = await d.select().from(employeeCredentials).where(eq(employeeCredentials.username, username));
+    const db = await getDb();
+    if (!db) return null;
+    const r = await db.select().from(employeeCredentials).where(eq(employeeCredentials.username, username));
     return r[0] || null;
   }
-
-  export async function getEmployeeCredentialByEmpId(employeeId: number) {
-    const d = await getDb();
-    if (!d) return null;
-    const r = await d.select().from(employeeCredentials).where(eq(employeeCredentials.employeeId, employeeId));
-    return r[0] || null;
+  export async function createEmployeeCredential(data: { employeeId: number; username: string; passwordHash: string }) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.insert(employeeCredentials).values(data).returning();
   }
-
-  /** Creates portal credentials. Password is always stored hashed (PBKDF2). */
-  export async function createEmployeeCredential(data: {
-    employeeId: number;
-    username: string;
-    plainPassword: string;
-    mustChangePassword?: boolean;
-  }) {
-    const d = await getDb();
-    if (!d) throw new Error("DB not available");
-    const dup = await d.select({ id: employeeCredentials.id }).from(employeeCredentials)
-      .where(eq(employeeCredentials.username, data.username));
-    if (dup.length > 0) throw new Error(`Username "${data.username}" is already in use`);
-    return d.insert(employeeCredentials).values({
-      employeeId: data.employeeId,
-      username: data.username,
-      passwordHash: hashPassword(data.plainPassword),
-      isActive: true,
-      mustChangePassword: data.mustChangePassword ?? true,
-    }).returning();
-  }
-
   export async function updateEmployeeCredential(employeeId: number, data: any) {
-    const d = await getDb();
-    if (!d) throw new Error("DB not available");
-    return d.update(employeeCredentials)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(employeeCredentials.employeeId, employeeId))
-      .returning();
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    return db.update(employeeCredentials).set({ ...data, updatedAt: new Date() }).where(eq(employeeCredentials.employeeId, employeeId)).returning();
   }
-
-  export async function changeEmployeePassword(employeeId: number, newPlain: string) {
-    const d = await getDb();
-    if (!d) throw new Error("DB not available");
-    return d.update(employeeCredentials)
-      .set({ passwordHash: hashPassword(newPlain), mustChangePassword: false, updatedAt: new Date() })
-      .where(eq(employeeCredentials.employeeId, employeeId))
-      .returning();
-  }
-
   export async function listEmployeeCredentials() {
-    const d = await getDb();
-    if (!d) return [];
-    return d.select({
-      employeeId: employeeCredentials.employeeId,
-      username: employeeCredentials.username,
-      isActive: employeeCredentials.isActive,
-      mustChangePassword: employeeCredentials.mustChangePassword,
-      lastLoginAt: employeeCredentials.lastLoginAt,
-    }).from(employeeCredentials);
+    const db = await getDb();
+    if (!db) return [];
+    return db.select({ employeeId: employeeCredentials.employeeId, username: employeeCredentials.username, isActive: employeeCredentials.isActive, lastLoginAt: employeeCredentials.lastLoginAt }).from(employeeCredentials);
   }
 
-  /** Auto-provision portal accounts for every active employee who has a
-   *  National ID / Iqama but no existing credentials yet.
-   *  username = password = nationalId (mustChangePassword = true). */
-  export async function provisionAllEmployeeCredentials(): Promise<{
-    provisioned: number; skipped: number; errors: string[];
-  }> {
-    const d = await getDb();
-    if (!d) throw new Error("DB not available");
-    const allEmps   = await d.select().from(employees).where(eq(employees.status, "active"));
-    const existing  = await d.select({ employeeId: employeeCredentials.employeeId }).from(employeeCredentials);
-    const existingSet = new Set(existing.map((c: any) => c.employeeId));
-    let provisioned = 0, skipped = 0;
-    const errors: string[] = [];
-    for (const emp of allEmps) {
-      if (existingSet.has(emp.id))      { skipped++; continue; }
-      if (!emp.nationalId?.trim())       { skipped++; continue; }
-      const username = emp.nationalId.trim();
-      try {
-        const dup = await d.select({ id: employeeCredentials.id })
-          .from(employeeCredentials).where(eq(employeeCredentials.username, username));
-        if (dup.length > 0) {
-          errors.push(`${emp.firstName} ${emp.lastName}: National ID "${username}" already used by another account`);
-          continue;
-        }
-        await d.insert(employeeCredentials).values({
-          employeeId: emp.id, username,
-          passwordHash: hashPassword(username),
-          isActive: true, mustChangePassword: true,
-        });
-        provisioned++;
-      } catch (err: any) {
-        errors.push(`${emp.firstName} ${emp.lastName}: ${err.message}`);
-      }
+  // ─── Password Hashing (PBKDF2 — built-in Node.js crypto) ────────────────────
+    export function hashPassword(plain: string): string {
+      const salt = randomBytes(16).toString("hex");
+      const hash = pbkdf2Sync(plain, salt, 100_000, 64, "sha512").toString("hex");
+      return `pbkdf2:${salt}:${hash}`;
     }
-    return { provisioned, skipped, errors };
-  }
 
-  // ─── Leave Balances ───────────────────────────────────────────────────────────
+    export function verifyPassword(plain: string, stored: string): boolean {
+      if (!stored.startsWith("pbkdf2:")) return plain === stored;
+      const [, salt, hash] = stored.split(":");
+      const candidate = pbkdf2Sync(plain, salt, 100_000, 64, "sha512");
+      return timingSafeEqual(Buffer.from(hash, "hex"), candidate);
+    }
+
+    // ─── Employee Credentials ─────────────────────────────────────────────────────
+    export async function getEmployeeCredential(username: string) {
+      const d = await getDb();
+      if (!d) return null;
+      const r = await d.select().from(employeeCredentials).where(eq(employeeCredentials.username, username));
+      return r[0] || null;
+    }
+
+    export async function getEmployeeCredentialByEmpId(employeeId: number) {
+      const d = await getDb();
+      if (!d) return null;
+      const r = await d.select().from(employeeCredentials).where(eq(employeeCredentials.employeeId, employeeId));
+      return r[0] || null;
+    }
+
+    export async function createEmployeeCredential(data: {
+      employeeId: number;
+      username: string;
+      plainPassword: string;
+      mustChangePassword?: boolean;
+    }) {
+      const d = await getDb();
+      if (!d) throw new Error("DB not available");
+      const dup = await d.select({ id: employeeCredentials.id }).from(employeeCredentials)
+        .where(eq(employeeCredentials.username, data.username));
+      if (dup.length > 0) throw new Error(`Username "${data.username}" is already in use`);
+      return d.insert(employeeCredentials).values({
+        employeeId: data.employeeId,
+        username: data.username,
+        passwordHash: hashPassword(data.plainPassword),
+        isActive: true,
+        mustChangePassword: data.mustChangePassword ?? true,
+      }).returning();
+    }
+
+    export async function updateEmployeeCredential(employeeId: number, data: any) {
+      const d = await getDb();
+      if (!d) throw new Error("DB not available");
+      return d.update(employeeCredentials)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(employeeCredentials.employeeId, employeeId))
+        .returning();
+    }
+
+    export async function changeEmployeePassword(employeeId: number, newPlain: string) {
+      const d = await getDb();
+      if (!d) throw new Error("DB not available");
+      return d.update(employeeCredentials)
+        .set({ passwordHash: hashPassword(newPlain), mustChangePassword: false, updatedAt: new Date() })
+        .where(eq(employeeCredentials.employeeId, employeeId))
+        .returning();
+    }
+
+    export async function listEmployeeCredentials() {
+      const d = await getDb();
+      if (!d) return [];
+      return d.select({
+        employeeId: employeeCredentials.employeeId,
+        username: employeeCredentials.username,
+        isActive: employeeCredentials.isActive,
+        mustChangePassword: employeeCredentials.mustChangePassword,
+        lastLoginAt: employeeCredentials.lastLoginAt,
+      }).from(employeeCredentials);
+    }
+
+    export async function provisionAllEmployeeCredentials(): Promise<{
+      provisioned: number; skipped: number; errors: string[];
+    }> {
+      const d = await getDb();
+      if (!d) throw new Error("DB not available");
+      const allEmps   = await d.select().from(employees).where(eq(employees.status, "active"));
+      const existing  = await d.select({ employeeId: employeeCredentials.employeeId }).from(employeeCredentials);
+      const existingSet = new Set(existing.map((c: any) => c.employeeId));
+      let provisioned = 0, skipped = 0;
+      const errors: string[] = [];
+      for (const emp of allEmps) {
+        if (existingSet.has(emp.id))      { skipped++; continue; }
+        if (!emp.nationalId?.trim())       { skipped++; continue; }
+        const username = emp.nationalId.trim();
+        try {
+          const dup = await d.select({ id: employeeCredentials.id })
+            .from(employeeCredentials).where(eq(employeeCredentials.username, username));
+          if (dup.length > 0) {
+            errors.push(`${emp.firstName} ${emp.lastName}: National ID "${username}" already used`);
+            continue;
+          }
+          await d.insert(employeeCredentials).values({
+            employeeId: emp.id, username,
+            passwordHash: hashPassword(username),
+            isActive: true, mustChangePassword: true,
+          });
+          provisioned++;
+        } catch (err: any) {
+          errors.push(`${emp.firstName} ${emp.lastName}: ${err.message}`);
+        }
+      }
+      return { provisioned, skipped, errors };
+    }
+
+    // ─── Leave Balances ───────────────────────────────────────────────────────────
   export async function getLeaveBalance(employeeId: number, year: number) {
     const db = await getDb();
     if (!db) return null;
