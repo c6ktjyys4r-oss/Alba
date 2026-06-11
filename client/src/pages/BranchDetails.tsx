@@ -53,6 +53,13 @@ import { useParams, useLocation } from "wouter";
     "Administrative Staff":<Briefcase size={15} className="text-slate-500"/>,
   };
 
+  /** First name + first word of last name, e.g. "Jehan Sapalon Sally" → "Jehan Sapalon" */
+  function shortName(firstName: string, lastName: string): string {
+    const first = (firstName || "").trim();
+    const lastFirst = (lastName || "").trim().split(/\s+/)[0];
+    return lastFirst ? `${first} ${lastFirst}` : first;
+  }
+
   export default function BranchDetails() {
     const params = useParams<{ id: string }>();
     const [, setLocation] = useLocation();
@@ -163,7 +170,7 @@ import { useParams, useLocation } from "wouter";
                               {(emp.firstName||"")[0]}{(emp.lastName||"")[0]}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-slate-900 truncate group-hover:text-blue-700 transition-colors">{emp.firstName} {emp.lastName}</p>
+                              <p title={`${emp.firstName} ${emp.lastName}`} className="font-semibold text-slate-900 truncate group-hover:text-blue-700 transition-colors">{shortName(emp.firstName, emp.lastName)}</p>
                               <p className="text-xs text-slate-500 truncate">{emp.jobTitle||"—"}</p>
                               <p className="text-xs text-slate-400 truncate">{dept?.name||"—"}</p>
                             </div>
