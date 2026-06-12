@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { employeeName, jobTitle, localizedName } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,8 @@ const defaultForm = {
 };
 
 export default function Employees() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [branchFilter, setBranchFilter] = useState("all");
@@ -84,7 +87,7 @@ export default function Employees() {
           <SelectTrigger className="w-40 h-9 text-sm"><SelectValue placeholder={t("common.branch")}/></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("common.all")}</SelectItem>
-            {branches.map(b=><SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+            {branches.map(b=><SelectItem key={b.id} value={String(b.id)}>{localizedName(lang,b)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -110,23 +113,23 @@ export default function Employees() {
                 const branch = branches.find(b=>b.id===emp.branchId);
                 const initials = `${emp.firstName?.[0]||""}${emp.lastName?.[0]||""}`.toUpperCase();
                 return (
-                  <tr key={emp.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                  <tr key={emp.id} onClick={()=>navigate(`/employees/${emp.id}`)} className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8"><AvatarFallback className="text-xs bg-blue-100 text-blue-700">{initials}</AvatarFallback></Avatar>
-                        <div><p className="font-medium text-slate-900">{emp.firstName} {emp.lastName}</p><p className="text-xs text-slate-400">{emp.email}</p></div>
+                        <div><p className="font-medium text-slate-900">{employeeName(lang,emp)}</p><p className="text-xs text-slate-400">{emp.email}</p></div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{emp.jobTitle||"—"}</td>
-                    <td className="px-4 py-3 text-slate-600">{branch?.name||"—"}</td>
+                    <td className="px-4 py-3 text-slate-600">{jobTitle(lang,emp)||"—"}</td>
+                    <td className="px-4 py-3 text-slate-600">{localizedName(lang,branch)||"—"}</td>
                     <td className="px-4 py-3 text-xs text-slate-500">{t(`role.${emp.erpRole}`)}</td>
                     <td className="px-4 py-3">
                       <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",`badge-${emp.status}`)}>{t(`employees.${emp.status}`)}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={()=>openEdit(emp)}><Edit size={13}/></Button>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={()=>deleteMutation.mutate({id:emp.id})}><Trash2 size={13}/></Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e)=>{e.stopPropagation();openEdit(emp);}}><Edit size={13}/></Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={(e)=>{e.stopPropagation();deleteMutation.mutate({id:emp.id});}}><Trash2 size={13}/></Button>
                       </div>
                     </td>
                   </tr>
@@ -182,7 +185,7 @@ export default function Employees() {
                 <SelectTrigger className="h-8 text-sm"><SelectValue/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("common.all")}</SelectItem>
-                  {branches.map(b=><SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+                  {branches.map(b=><SelectItem key={b.id} value={String(b.id)}>{localizedName(lang,b)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -192,7 +195,7 @@ export default function Employees() {
                 <SelectTrigger className="h-8 text-sm"><SelectValue/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("common.all")}</SelectItem>
-                  {departments.map(d=><SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+                  {departments.map(d=><SelectItem key={d.id} value={String(d.id)}>{localizedName(lang,d)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

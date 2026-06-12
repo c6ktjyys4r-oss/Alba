@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { employeeName, localizedName } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ const STATUSES = ["pending","in_progress","completed","cancelled"];
 const defaultForm = { title:"", description:"", assignedToId:"", branchId:"", priority:"medium", status:"pending", dueDate:"" };
 
 export default function Tasks() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -110,7 +111,7 @@ export default function Tasks() {
           const branch = branches.find((b: any)=>b.id===task.branchId);
           const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status!=="completed";
           return (
-            <div key={task.id} className={cn("bg-white rounded-xl border border-slate-200 p-4 hover:shadow-sm transition-shadow", isOverdue&&"border-red-200 bg-red-50/30")}>
+            <div key={task.id} className={cn("bg-white rounded-xl border border-slate-200 p-4", isOverdue&&"border-red-200 bg-red-50/30")}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="mt-0.5">{statusIcons[task.status]||statusIcons.pending}</div>
@@ -122,8 +123,8 @@ export default function Tasks() {
                     </div>
                     {task.description && <p className="text-xs text-slate-500 mt-0.5 truncate">{task.description}</p>}
                     <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
-                      {assignee && <span>👤 {assignee.firstName} {assignee.lastName}</span>}
-                      {branch && <span>🏢 {branch.name}</span>}
+                      {assignee && <span>👤 {employeeName(lang,assignee)}</span>}
+                      {branch && <span>🏢 {localizedName(lang,branch)}</span>}
                       {task.dueDate && <span className={cn(isOverdue&&"text-red-500")}>📅 {task.dueDate}</span>}
                     </div>
                   </div>
@@ -173,7 +174,7 @@ export default function Tasks() {
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select..."/></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">{t("common.none")}</SelectItem>
-                    {employees.map((e: any)=><SelectItem key={e.id} value={String(e.id)}>{e.firstName} {e.lastName}</SelectItem>)}
+                    {employees.map((e: any)=><SelectItem key={e.id} value={String(e.id)}>{employeeName(lang,e)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -188,7 +189,7 @@ export default function Tasks() {
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select branch..."/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("common.none")}</SelectItem>
-                  {branches.map((b: any)=><SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+                  {branches.map((b: any)=><SelectItem key={b.id} value={String(b.id)}>{localizedName(lang,b)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
