@@ -22,7 +22,20 @@ const branchRouter = router({
     phone: z.string().optional(),
     email: z.string().optional(),
     managerName: z.string().optional(),
-  })).mutation(({ input }) => db.createBranch(input)),
+    latitude: z.number().nullable().optional(),
+    longitude: z.number().nullable().optional(),
+    geofenceRadiusMeters: z.number().int().positive().optional(),
+    workStartTime: z.string().optional(),
+    workEndTime: z.string().optional(),
+    timezone: z.string().optional(),
+    lateGraceMinutes: z.number().int().min(0).optional(),
+  })).mutation(({ input }) => {
+    const { latitude, longitude, ...rest } = input;
+    const data: any = { ...rest };
+    if (latitude != null) data.latitude = String(latitude);
+    if (longitude != null) data.longitude = String(longitude);
+    return db.createBranch(data);
+  }),
   update: protectedProcedure.input(z.object({
     id: z.number(),
     name: z.string().optional(),
@@ -32,7 +45,20 @@ const branchRouter = router({
     email: z.string().optional(),
     managerName: z.string().optional(),
     isActive: z.boolean().optional(),
-  })).mutation(({ input }) => { const { id, ...data } = input; return db.updateBranch(id, data); }),
+    latitude: z.number().nullable().optional(),
+    longitude: z.number().nullable().optional(),
+    geofenceRadiusMeters: z.number().int().positive().optional(),
+    workStartTime: z.string().optional(),
+    workEndTime: z.string().optional(),
+    timezone: z.string().optional(),
+    lateGraceMinutes: z.number().int().min(0).optional(),
+  })).mutation(({ input }) => {
+    const { id, latitude, longitude, ...rest } = input;
+    const data: any = { ...rest };
+    if (latitude !== undefined) data.latitude = latitude === null ? null : String(latitude);
+    if (longitude !== undefined) data.longitude = longitude === null ? null : String(longitude);
+    return db.updateBranch(id, data);
+  }),
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => db.deleteBranch(input.id)),
 });
 
@@ -233,6 +259,15 @@ const attendanceRouter = router({
     status: z.string().optional(),
     branchId: z.number().optional(),
   }).optional()).query(({ input }) => db.getAttendance(input || {})),
+  events: protectedProcedure.input(z.object({
+    employeeId: z.number().optional(),
+    branchId: z.number().optional(),
+    date: z.string().optional(),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
+    accepted: z.boolean().optional(),
+    withinGeofence: z.boolean().optional(),
+  }).optional()).query(({ input }) => db.getAttendanceEvents(input || {})),
   create: protectedProcedure.input(z.object({
     employeeId: z.number(),
     date: z.string(),
@@ -567,6 +602,43 @@ const importRouter = router({
   // ─── Employee Self-Service Portal ────────────────────────────────────────────
   const EMP_COOKIE = "emp_session";
 
+  async function recordEmpPunch(
+    ctx: any,
+    input: { latitude: number; longitude: number; accuracy?: number },
+    type: "check_in" | "check_out"
+  ) {
+    const result = await db.recordGpsPunch({
+      employeeId: ctx.empEmployeeId,
+      type,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      accuracyMeters: input.accuracy ?? null,
+      method: "gps",
+      ipAddress: ctx.req?.ip ?? null,
+      userAgent: ctx.req?.headers?.["user-agent"] ?? null,
+    });
+    if (!result.accepted) {
+      if (result.rejectionReason === "no_branch_assigned")
+        throw new Error("You are not assigned to a branch yet. Please contact HR.");
+      if (result.rejectionReason === "branch_not_configured")
+        throw new Error("Your branch location has not been configured yet. Please contact your administrator.");
+      if (result.rejectionReason === "already_checked_in")
+        throw new Error("You are already checked in. Please check out first.");
+      if (result.rejectionReason === "not_checked_in")
+        throw new Error("You have not checked in yet today. Please check in first.");
+      throw new Error(
+        `You are ${result.distanceMeters}m from your branch — outside the allowed ${result.radius}m range. Move closer and try again.`
+      );
+    }
+    const time = new Intl.DateTimeFormat("en-GB", {
+      timeZone: result.timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(result.event.eventAt));
+    return { time, distanceMeters: result.distanceMeters };
+  }
+
   const empPortalRouter = router({
     login: publicProcedure.input(z.object({
       username: z.string().min(1),
@@ -680,6 +752,67 @@ const importRouter = router({
     markAllRead: empProtectedProcedure.mutation(({ ctx }) =>
       db.markAllEmpNotificationsRead(ctx.empEmployeeId)
     ),
+
+    // ─── Attendance (GPS) ────────────────────────────────────────────────────
+    attendanceStatus: empProtectedProcedure.query(async ({ ctx }) => {
+      const emp = await db.getEmployeeById(ctx.empEmployeeId);
+      if (!emp) throw new Error("Employee not found");
+      const branch = emp.branchId ? await db.getBranchById(emp.branchId) : null;
+      const tz = branch?.timezone || "Asia/Riyadh";
+      const { localDate } = db.nowInTimezone(tz);
+
+      const events = await db.getAttendanceEventsForDay(ctx.empEmployeeId, localDate);
+      const accepted = events.filter((e: any) => e.accepted);
+      const acceptedIns = accepted.filter((e: any) => e.type === "check_in");
+      const acceptedOuts = accepted.filter((e: any) => e.type === "check_out");
+      const checkedIn = acceptedIns.length > acceptedOuts.length;
+
+      const [daily] = await db.getAttendance({ employeeId: ctx.empEmployeeId, date: localDate });
+      const branchConfigured = !!(branch && branch.latitude != null && branch.longitude != null);
+
+      return {
+        timezone: tz,
+        checkedIn,
+        branch: branch
+          ? {
+              id: branch.id,
+              name: branch.name,
+              geofenceRadiusMeters: branch.geofenceRadiusMeters ?? 100,
+              configured: branchConfigured,
+            }
+          : null,
+        firstCheckIn: daily?.checkIn ?? acceptedIns[0]?.eventAt ?? null,
+        lastCheckOut:
+          daily?.checkOut ?? (acceptedOuts.length ? acceptedOuts[acceptedOuts.length - 1].eventAt : null),
+        workedMinutes: daily?.workedMinutes ?? 0,
+        canCheckIn: !checkedIn,
+        canCheckOut: checkedIn,
+        events: accepted.map((e: any) => ({
+          id: e.id,
+          type: e.type,
+          eventAt: e.eventAt,
+          distanceMeters: e.distanceMeters != null ? Math.round(Number(e.distanceMeters)) : null,
+        })),
+      };
+    }),
+
+    myAttendanceHistory: empProtectedProcedure
+      .input(z.object({ dateFrom: z.string().optional(), dateTo: z.string().optional() }).optional())
+      .query(({ ctx, input }) =>
+        db.getEmployeeAttendanceHistory(ctx.empEmployeeId, {
+          dateFrom: input?.dateFrom,
+          dateTo: input?.dateTo,
+          limit: 60,
+        })
+      ),
+
+    checkIn: empProtectedProcedure
+      .input(z.object({ latitude: z.number(), longitude: z.number(), accuracy: z.number().optional() }))
+      .mutation(({ ctx, input }) => recordEmpPunch(ctx, input, "check_in")),
+
+    checkOut: empProtectedProcedure
+      .input(z.object({ latitude: z.number(), longitude: z.number(), accuracy: z.number().optional() }))
+      .mutation(({ ctx, input }) => recordEmpPunch(ctx, input, "check_out")),
 
     // Admin-only: create or reset employee portal credentials
     createCredential: protectedProcedure.input(z.object({

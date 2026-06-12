@@ -9,6 +9,7 @@ import {
   boolean,
   date,
   serial,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 // ─── Users (Auth) ────────────────────────────────────────────────────────────
@@ -37,6 +38,13 @@ export const branches = pgTable("branches", {
   email: varchar("email", { length: 320 }),
   managerName: varchar("managerName", { length: 255 }),
   isActive: boolean("isActive").default(true).notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  geofenceRadiusMeters: integer("geofenceRadiusMeters").default(100).notNull(),
+  workStartTime: varchar("workStartTime", { length: 5 }),
+  workEndTime: varchar("workEndTime", { length: 5 }),
+  timezone: varchar("timezone", { length: 64 }).default("Asia/Riyadh").notNull(),
+  lateGraceMinutes: integer("lateGraceMinutes").default(5).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
@@ -170,6 +178,8 @@ export const attendance = pgTable("attendance", {
   expectedCheckOut: timestamp("expectedCheckOut"),
   delayMinutes: integer("delayMinutes").default(0),
   earlyLeaveMinutes: integer("earlyLeaveMinutes").default(0),
+  workedMinutes: integer("workedMinutes").default(0),
+  branchId: integer("branchId"),
   notes: text("notes"),
   adjustedBy: integer("adjustedBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -177,6 +187,30 @@ export const attendance = pgTable("attendance", {
 });
 
 export type Attendance = typeof attendance.$inferSelect;
+
+// ─── Attendance Events (GPS Punch Log) ────────────────────────────────────────
+export const attendanceEvents = pgTable("attendance_events", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employeeId").notNull(),
+  branchId: integer("branchId"),
+  type: text("type").$type<"check_in" | "check_out">().notNull(),
+  method: text("method").default("gps").notNull(),
+  eventAt: timestamp("eventAt").defaultNow().notNull(),
+  localDate: date("localDate").notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  accuracyMeters: decimal("accuracyMeters", { precision: 8, scale: 2 }),
+  distanceMeters: decimal("distanceMeters", { precision: 10, scale: 2 }),
+  withinGeofence: boolean("withinGeofence").default(true).notNull(),
+  accepted: boolean("accepted").default(true).notNull(),
+  rejectionReason: varchar("rejectionReason", { length: 100 }),
+  metadata: jsonb("metadata"),
+  ipAddress: varchar("ipAddress", { length: 64 }),
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AttendanceEvent = typeof attendanceEvents.$inferSelect;
 
 // ─── Revenue ──────────────────────────────────────────────────────────────────
 export const revenues = pgTable("revenues", {

@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Building2, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Users, MapPin } from "lucide-react";
 
-const defaultBranchForm = { name:"", nameAr:"", address:"", phone:"", email:"", managerName:"" };
+const defaultBranchForm = { name:"", nameAr:"", address:"", phone:"", email:"", managerName:"", latitude:"", longitude:"", geofenceRadiusMeters:"100", workStartTime:"", workEndTime:"", timezone:"Asia/Riyadh", lateGraceMinutes:"5" };
 const defaultDeptForm = { name:"", nameAr:"", branchId:"" };
 
 export default function Branches() {
@@ -39,8 +39,31 @@ export default function Branches() {
   const updateDept = trpc.department.update.useMutation({ onSuccess:()=>{ utils.department.list.invalidate(); toast.success("Department updated"); setDeptDialog(false); }, onError:(e)=>toast.error(e.message) });
   const deleteDept = trpc.department.delete.useMutation({ onSuccess:()=>{ utils.department.list.invalidate(); toast.success("Department deleted"); }, onError:(e)=>toast.error(e.message) });
 
-  const openEditBranch = (b: any) => { setEditBranchId(b.id); setBranchForm({ name:b.name||"", nameAr:b.nameAr||"", address:b.address||"", phone:b.phone||"", email:b.email||"", managerName:b.managerName||"" }); setBranchDialog(true); };
+  const openEditBranch = (b: any) => { setEditBranchId(b.id); setBranchForm({ name:b.name||"", nameAr:b.nameAr||"", address:b.address||"", phone:b.phone||"", email:b.email||"", managerName:b.managerName||"", latitude:b.latitude!=null?String(b.latitude):"", longitude:b.longitude!=null?String(b.longitude):"", geofenceRadiusMeters:b.geofenceRadiusMeters!=null?String(b.geofenceRadiusMeters):"100", workStartTime:b.workStartTime||"", workEndTime:b.workEndTime||"", timezone:b.timezone||"Asia/Riyadh", lateGraceMinutes:b.lateGraceMinutes!=null?String(b.lateGraceMinutes):"5" }); setBranchDialog(true); };
   const openEditDept = (d: any) => { setEditDeptId(d.id); setDeptForm({ name:d.name||"", nameAr:d.nameAr||"", branchId:d.branchId?String(d.branchId):"" }); setDeptDialog(true); };
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) { toast.error("Geolocation is not supported on this device"); return; }
+    toast.info("Getting your location…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setBranchForm(f=>({ ...f, latitude:String(pos.coords.latitude), longitude:String(pos.coords.longitude) })); toast.success("Location captured"); },
+      (err) => toast.error(err.message || "Could not get your location"),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const buildBranchPayload = () => {
+    const { latitude, longitude, geofenceRadiusMeters, lateGraceMinutes, workStartTime, workEndTime, timezone, ...rest } = branchForm;
+    const payload: any = { ...rest };
+    payload.latitude = latitude.trim()==="" ? null : Number(latitude);
+    payload.longitude = longitude.trim()==="" ? null : Number(longitude);
+    if (geofenceRadiusMeters.trim()!=="") payload.geofenceRadiusMeters = Number(geofenceRadiusMeters);
+    if (lateGraceMinutes.trim()!=="") payload.lateGraceMinutes = Number(lateGraceMinutes);
+    payload.workStartTime = workStartTime.trim()==="" ? undefined : workStartTime;
+    payload.workEndTime = workEndTime.trim()==="" ? undefined : workEndTime;
+    payload.timezone = timezone.trim()==="" ? undefined : timezone;
+    return payload;
+  };
 
   return (
     <div className="p-4 lg:p-6">
@@ -135,7 +158,7 @@ export default function Branches() {
 
             {/* Branch Dialog */}
       <Dialog open={branchDialog} onOpenChange={setBranchDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editBranchId?"Edit Branch":t("branches.addBranch")}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             {[{key:"name",label:t("branches.branchName"),req:true},{key:"nameAr",label:`${t("branches.branchName")} (AR)`},{key:"address",label:t("employees.address")},{key:"phone",label:t("common.phone")},{key:"email",label:t("common.email")},{key:"managerName",label:t("branches.manager")}].map(({key,label,req})=>(
@@ -145,9 +168,46 @@ export default function Branches() {
               </div>
             ))}
           </div>
+          <div className="border-t border-slate-100 pt-3 mt-1">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs font-semibold text-slate-700">GPS Attendance</Label>
+              <Button type="button" variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={useCurrentLocation}><MapPin size={12}/> Use current location</Button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Latitude</Label>
+                <Input type="number" step="any" value={branchForm.latitude} onChange={e=>setBranchForm({...branchForm,latitude:e.target.value})} className="h-8 text-sm" placeholder="24.7136"/>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Longitude</Label>
+                <Input type="number" step="any" value={branchForm.longitude} onChange={e=>setBranchForm({...branchForm,longitude:e.target.value})} className="h-8 text-sm" placeholder="46.6753"/>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Geofence radius (m)</Label>
+                <Input type="number" value={branchForm.geofenceRadiusMeters} onChange={e=>setBranchForm({...branchForm,geofenceRadiusMeters:e.target.value})} className="h-8 text-sm" placeholder="100"/>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Late grace (min)</Label>
+                <Input type="number" value={branchForm.lateGraceMinutes} onChange={e=>setBranchForm({...branchForm,lateGraceMinutes:e.target.value})} className="h-8 text-sm" placeholder="5"/>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Work start</Label>
+                <Input type="time" value={branchForm.workStartTime} onChange={e=>setBranchForm({...branchForm,workStartTime:e.target.value})} className="h-8 text-sm"/>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Work end</Label>
+                <Input type="time" value={branchForm.workEndTime} onChange={e=>setBranchForm({...branchForm,workEndTime:e.target.value})} className="h-8 text-sm"/>
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Timezone</Label>
+                <Input value={branchForm.timezone} onChange={e=>setBranchForm({...branchForm,timezone:e.target.value})} className="h-8 text-sm" placeholder="Asia/Riyadh"/>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2">Employees can only check in/out within the geofence radius of these coordinates. Out-of-range punches are still logged for audit.</p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={()=>setBranchDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={()=>{ if(editBranchId) updateBranch.mutate({id:editBranchId,...branchForm}); else createBranch.mutate(branchForm); }} disabled={createBranch.isPending||updateBranch.isPending}>{t("common.save")}</Button>
+            <Button onClick={()=>{ const payload=buildBranchPayload(); if(editBranchId) updateBranch.mutate({id:editBranchId,...payload}); else createBranch.mutate(payload); }} disabled={createBranch.isPending||updateBranch.isPending}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

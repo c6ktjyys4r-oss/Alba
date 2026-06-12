@@ -11,6 +11,7 @@ import {
   salaryStructures,
   payrollRecords,
   attendance,
+  attendanceEvents,
   revenues,
   expenses,
   inventoryItems,
@@ -303,19 +304,19 @@ export async function updatePayrollStatus(id: number, status: string) {
   }
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
-export async function getAttendance(filters: { employeeId?: number; date?: string; startDate?: string; endDate?: string } = {}) {
+export async function getAttendance(filters: { employeeId?: number; branchId?: number; date?: string; status?: string; startDate?: string; endDate?: string; dateFrom?: string; dateTo?: string } = {}) {
   const db = await getDb();
   if (!db) return [];
-  let conditions = [];
+  const conditions: any[] = [];
   if (filters.employeeId) conditions.push(eq(attendance.employeeId, filters.employeeId));
+  if (filters.branchId) conditions.push(eq(attendance.branchId, filters.branchId));
+  if (filters.status) conditions.push(eq(attendance.status, filters.status as any));
   if (filters.date) conditions.push(eq(attendance.date, filters.date));
-  if (filters.startDate && filters.endDate) {
-    conditions.push(and(
-      sql`${attendance.date} >= ${filters.startDate}`,
-      sql`${attendance.date} <= ${filters.endDate}`
-    ));
-  }
-  
+  const from = filters.dateFrom ?? filters.startDate;
+  const to = filters.dateTo ?? filters.endDate;
+  if (from) conditions.push(sql`${attendance.date} >= ${from}`);
+  if (to) conditions.push(sql`${attendance.date} <= ${to}`);
+
   const query = db.select().from(attendance);
   if (conditions.length > 0) {
     return query.where(and(...conditions)).orderBy(desc(attendance.date));
@@ -327,6 +328,463 @@ export async function logAttendance(data: any) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.insert(attendance).values(data).returning();
+}
+
+// ─── Attendance: GPS Geofence & Events ────────────────────────────────────────
+
+const EARTH_RADIUS_M = 6371000;
+
+// Great-circle distance in meters between two lat/lng points.
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+function hhmmToMinutes(hhmm?: string | null): number | null {
+  if (!hhmm) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm.trim());
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  if (Number.isNaN(h) || Number.isNaN(mm)) return null;
+  return h * 60 + mm;
+}
+
+// Minute-of-day (0..1439) for an instant, evaluated in the given IANA timezone.
+function minutesOfDay(d: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  let h = 0;
+  let mm = 0;
+  for (const p of parts) {
+    if (p.type === "hour") h = parseInt(p.value, 10);
+    if (p.type === "minute") mm = parseInt(p.value, 10);
+  }
+  return h * 60 + mm;
+}
+
+// Offset (minutes) of a timezone at a given instant. Riyadh => +180.
+function tzOffsetMinutes(timezone: string, at: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+  const map: Record<string, number> = {};
+  for (const p of parts) {
+    if (p.type !== "literal") map[p.type] = parseInt(p.value, 10);
+  }
+  const asUTC = Date.UTC(map.year, map.month - 1, map.day, map.hour, map.minute, map.second);
+  return Math.round((asUTC - at.getTime()) / 60000);
+}
+
+// UTC instant for a wall-clock "HH:MM" on localDate in the given timezone.
+function localTimeToTimestamp(localDate: string, hhmm: string | null | undefined, timezone: string): Date | null {
+  const min = hhmmToMinutes(hhmm);
+  if (min == null) return null;
+  const hh = String(Math.floor(min / 60)).padStart(2, "0");
+  const mm = String(min % 60).padStart(2, "0");
+  const guess = new Date(`${localDate}T${hh}:${mm}:00Z`);
+  const offset = tzOffsetMinutes(timezone, guess);
+  return new Date(guess.getTime() - offset * 60000);
+}
+
+// Current local date (YYYY-MM-DD) and minute-of-day in a timezone.
+export function nowInTimezone(timezone: string = "Asia/Riyadh"): { localDate: string; minutesOfDay: number; now: Date } {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const localDate = `${get("year")}-${get("month")}-${get("day")}`;
+  const minutes = parseInt(get("hour"), 10) * 60 + parseInt(get("minute"), 10);
+  return { localDate, minutesOfDay: minutes, now };
+}
+
+export async function createAttendanceEvent(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [row] = await db.insert(attendanceEvents).values(data).returning();
+  return row;
+}
+
+export async function getAttendanceEventsForDay(employeeId: number, localDate: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(attendanceEvents)
+    .where(and(eq(attendanceEvents.employeeId, employeeId), eq(attendanceEvents.localDate, localDate)))
+    .orderBy(asc(attendanceEvents.eventAt));
+}
+
+export async function getAttendanceEvents(
+  filters: {
+    employeeId?: number;
+    branchId?: number;
+    date?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    startDate?: string;
+    endDate?: string;
+    accepted?: boolean;
+    withinGeofence?: boolean;
+  } = {}
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const from = filters.dateFrom ?? filters.startDate;
+  const to = filters.dateTo ?? filters.endDate;
+  const conditions: any[] = [];
+  if (filters.employeeId) conditions.push(eq(attendanceEvents.employeeId, filters.employeeId));
+  if (filters.branchId) conditions.push(eq(attendanceEvents.branchId, filters.branchId));
+  if (filters.date) conditions.push(eq(attendanceEvents.localDate, filters.date));
+  if (from) conditions.push(sql`${attendanceEvents.localDate} >= ${from}`);
+  if (to) conditions.push(sql`${attendanceEvents.localDate} <= ${to}`);
+  if (filters.accepted !== undefined) conditions.push(eq(attendanceEvents.accepted, filters.accepted));
+  if (filters.withinGeofence !== undefined) conditions.push(eq(attendanceEvents.withinGeofence, filters.withinGeofence));
+  const query = db.select().from(attendanceEvents);
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).orderBy(desc(attendanceEvents.eventAt));
+  }
+  return query.orderBy(desc(attendanceEvents.eventAt));
+}
+
+export async function getEmployeeAttendanceHistory(
+  employeeId: number,
+  opts: { dateFrom?: string; dateTo?: string; limit?: number } = {}
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [eq(attendance.employeeId, employeeId)];
+  if (opts.dateFrom) conditions.push(sql`${attendance.date} >= ${opts.dateFrom}`);
+  if (opts.dateTo) conditions.push(sql`${attendance.date} <= ${opts.dateTo}`);
+  let q: any = db.select().from(attendance).where(and(...conditions)).orderBy(desc(attendance.date));
+  if (opts.limit) q = q.limit(opts.limit);
+  return q;
+}
+
+// Recompute the daily attendance summary row from accepted GPS events.
+export async function recomputeDailyAttendance(employeeId: number, localDate: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const emp = await getEmployeeById(employeeId);
+  const branchId = emp?.branchId ?? null;
+  const branch = branchId ? await getBranchById(branchId) : null;
+  const tz = branch?.timezone || "Asia/Riyadh";
+
+  const events = await db
+    .select()
+    .from(attendanceEvents)
+    .where(
+      and(
+        eq(attendanceEvents.employeeId, employeeId),
+        eq(attendanceEvents.localDate, localDate),
+        eq(attendanceEvents.accepted, true)
+      )
+    )
+    .orderBy(asc(attendanceEvents.eventAt));
+
+  const checkIns = events.filter((e: any) => e.type === "check_in");
+  const checkOuts = events.filter((e: any) => e.type === "check_out");
+  const firstIn: Date | null = checkIns.length ? checkIns[0].eventAt : null;
+  const lastOut: Date | null = checkOuts.length ? checkOuts[checkOuts.length - 1].eventAt : null;
+
+  let status = "present";
+  let delayMinutes = 0;
+  let earlyLeaveMinutes = 0;
+  let workedMinutes = 0;
+
+  const grace = branch?.lateGraceMinutes ?? 5;
+  const wsm = hhmmToMinutes(branch?.workStartTime);
+  const wem = hhmmToMinutes(branch?.workEndTime);
+
+  if (firstIn && wsm != null) {
+    const im = minutesOfDay(firstIn, tz);
+    if (im > wsm + grace) {
+      status = "late";
+      delayMinutes = im - wsm;
+    }
+  }
+  if (lastOut && wem != null) {
+    const om = minutesOfDay(lastOut, tz);
+    if (om < wem) {
+      earlyLeaveMinutes = wem - om;
+      if (status === "present") status = "early_leave";
+    }
+  }
+  if (firstIn && lastOut) {
+    workedMinutes = Math.max(0, Math.round((lastOut.getTime() - firstIn.getTime()) / 60000));
+  }
+
+  const row = {
+    employeeId,
+    branchId,
+    date: localDate,
+    checkIn: firstIn,
+    checkOut: lastOut,
+    status: status as any,
+    delayMinutes,
+    earlyLeaveMinutes,
+    workedMinutes,
+    updatedAt: new Date(),
+  };
+
+  const [existing] = await db
+    .select()
+    .from(attendance)
+    .where(and(eq(attendance.employeeId, employeeId), eq(attendance.date, localDate)))
+    .limit(1);
+
+  if (existing) {
+    const [updated] = await db.update(attendance).set(row).where(eq(attendance.id, existing.id)).returning();
+    return updated;
+  }
+  const [inserted] = await db.insert(attendance).values(row).returning();
+  return inserted;
+}
+
+// Admin manual create of a daily attendance record (times entered as "HH:MM").
+export async function createAttendanceRecord(data: {
+  employeeId: number;
+  date: string;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  status?: string;
+  branchId?: number | null;
+  notes?: string | null;
+  delayMinutes?: number | null;
+  earlyLeaveMinutes?: number | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const emp = await getEmployeeById(data.employeeId);
+  const branchId = data.branchId ?? emp?.branchId ?? null;
+  const branch = branchId ? await getBranchById(branchId) : null;
+  const tz = branch?.timezone || "Asia/Riyadh";
+
+  const checkIn = localTimeToTimestamp(data.date, data.checkIn, tz);
+  const checkOut = localTimeToTimestamp(data.date, data.checkOut, tz);
+
+  let delayMinutes = 0;
+  let earlyLeaveMinutes = 0;
+  let workedMinutes = 0;
+  const grace = branch?.lateGraceMinutes ?? 5;
+  const wsm = hhmmToMinutes(branch?.workStartTime);
+  const wem = hhmmToMinutes(branch?.workEndTime);
+  if (checkIn && wsm != null) {
+    const im = minutesOfDay(checkIn, tz);
+    if (im > wsm + grace) delayMinutes = im - wsm;
+  }
+  if (checkOut && wem != null) {
+    const om = minutesOfDay(checkOut, tz);
+    if (om < wem) earlyLeaveMinutes = wem - om;
+  }
+  if (checkIn && checkOut) {
+    workedMinutes = Math.max(0, Math.round((checkOut.getTime() - checkIn.getTime()) / 60000));
+  }
+
+  const [row] = await db
+    .insert(attendance)
+    .values({
+      employeeId: data.employeeId,
+      branchId,
+      date: data.date,
+      checkIn,
+      checkOut,
+      status: (data.status ?? "present") as any,
+      delayMinutes: data.delayMinutes ?? delayMinutes,
+      earlyLeaveMinutes: data.earlyLeaveMinutes ?? earlyLeaveMinutes,
+      workedMinutes,
+      notes: data.notes ?? null,
+    })
+    .returning();
+  return row;
+}
+
+export async function updateAttendanceRecord(
+  id: number,
+  data: {
+    date?: string;
+    checkIn?: string | null;
+    checkOut?: string | null;
+    status?: string;
+    branchId?: number | null;
+    notes?: string | null;
+    delayMinutes?: number | null;
+    earlyLeaveMinutes?: number | null;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [existing] = await db.select().from(attendance).where(eq(attendance.id, id)).limit(1);
+  if (!existing) throw new Error("Attendance record not found");
+
+  const date = data.date ?? existing.date;
+  const emp = await getEmployeeById(existing.employeeId);
+  const branchId = data.branchId ?? existing.branchId ?? emp?.branchId ?? null;
+  const branch = branchId ? await getBranchById(branchId) : null;
+  const tz = branch?.timezone || "Asia/Riyadh";
+
+  const checkIn =
+    data.checkIn !== undefined ? localTimeToTimestamp(date, data.checkIn, tz) : (existing.checkIn as Date | null);
+  const checkOut =
+    data.checkOut !== undefined ? localTimeToTimestamp(date, data.checkOut, tz) : (existing.checkOut as Date | null);
+
+  let delayMinutes = 0;
+  let earlyLeaveMinutes = 0;
+  let workedMinutes = 0;
+  const grace = branch?.lateGraceMinutes ?? 5;
+  const wsm = hhmmToMinutes(branch?.workStartTime);
+  const wem = hhmmToMinutes(branch?.workEndTime);
+  if (checkIn && wsm != null) {
+    const im = minutesOfDay(checkIn, tz);
+    if (im > wsm + grace) delayMinutes = im - wsm;
+  }
+  if (checkOut && wem != null) {
+    const om = minutesOfDay(checkOut, tz);
+    if (om < wem) earlyLeaveMinutes = wem - om;
+  }
+  if (checkIn && checkOut) {
+    workedMinutes = Math.max(0, Math.round((checkOut.getTime() - checkIn.getTime()) / 60000));
+  }
+
+  const [row] = await db
+    .update(attendance)
+    .set({
+      date,
+      branchId,
+      checkIn,
+      checkOut,
+      status: (data.status ?? existing.status) as any,
+      delayMinutes: data.delayMinutes ?? delayMinutes,
+      earlyLeaveMinutes: data.earlyLeaveMinutes ?? earlyLeaveMinutes,
+      workedMinutes,
+      notes: data.notes !== undefined ? data.notes : existing.notes,
+      updatedAt: new Date(),
+    })
+    .where(eq(attendance.id, id))
+    .returning();
+  return row;
+}
+
+export async function deleteAttendanceRecord(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(attendance).where(eq(attendance.id, id)).returning();
+}
+
+// Record a GPS punch. ALWAYS logs an event (audit); accepts only if within geofence.
+export async function recordGpsPunch(input: {
+  employeeId: number;
+  type: "check_in" | "check_out";
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number | null;
+  method?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  const emp = await getEmployeeById(input.employeeId);
+  if (!emp) throw new Error("Employee not found");
+  const branch = emp.branchId ? await getBranchById(emp.branchId) : null;
+  const tz = branch?.timezone || "Asia/Riyadh";
+  const { localDate } = nowInTimezone(tz);
+
+  const radius = branch?.geofenceRadiusMeters ?? 100;
+  const hasBranchGeo = !!(branch && branch.latitude != null && branch.longitude != null);
+
+  let distanceMeters: number | null = null;
+  let withinGeofence = false;
+  let rejectionReason: string | null = null;
+
+  if (!branch) {
+    rejectionReason = "no_branch_assigned";
+  } else if (!hasBranchGeo) {
+    rejectionReason = "branch_not_configured";
+  } else {
+    distanceMeters = haversineMeters(
+      input.latitude,
+      input.longitude,
+      Number(branch.latitude),
+      Number(branch.longitude)
+    );
+    withinGeofence = distanceMeters <= radius;
+    if (!withinGeofence) rejectionReason = "out_of_range";
+  }
+
+  let accepted = withinGeofence;
+  if (accepted) {
+    const todays = await getAttendanceEventsForDay(input.employeeId, localDate);
+    const acc = todays.filter((e: any) => e.accepted);
+    const ins = acc.filter((e: any) => e.type === "check_in").length;
+    const outs = acc.filter((e: any) => e.type === "check_out").length;
+    const currentlyCheckedIn = ins > outs;
+    if (input.type === "check_in" && currentlyCheckedIn) {
+      accepted = false;
+      rejectionReason = "already_checked_in";
+    } else if (input.type === "check_out" && !currentlyCheckedIn) {
+      accepted = false;
+      rejectionReason = "not_checked_in";
+    }
+  }
+
+  const event = await createAttendanceEvent({
+    employeeId: input.employeeId,
+    branchId: branch?.id ?? null,
+    type: input.type,
+    method: input.method ?? "gps",
+    eventAt: new Date(),
+    localDate,
+    latitude: String(input.latitude),
+    longitude: String(input.longitude),
+    accuracyMeters: input.accuracyMeters != null ? String(input.accuracyMeters) : null,
+    distanceMeters: distanceMeters != null ? String(distanceMeters) : null,
+    withinGeofence,
+    accepted,
+    rejectionReason,
+    ipAddress: input.ipAddress ?? null,
+    userAgent: input.userAgent ?? null,
+  });
+
+  if (accepted) {
+    await recomputeDailyAttendance(input.employeeId, localDate);
+  }
+
+  return {
+    event,
+    accepted,
+    withinGeofence,
+    distanceMeters: distanceMeters != null ? Math.round(distanceMeters) : null,
+    rejectionReason,
+    radius,
+    localDate,
+    timezone: tz,
+  };
 }
 
 // ─── Financials (Revenue & Expenses) ──────────────────────────────────────────

@@ -34,6 +34,7 @@ import { Toaster } from "@/components/ui/sonner";
   import PortalRequests from "./pages/emp/PortalRequests";
   import PortalNewRequest from "./pages/emp/PortalNewRequest";
   import PortalNotifications from "./pages/emp/PortalNotifications";
+  import PortalAttendance from "./pages/emp/PortalAttendance";
   import ManagerPortal from "./pages/emp/ManagerPortal";
   import ChangePassword from "./pages/emp/ChangePassword";
 
@@ -107,6 +108,7 @@ import { Toaster } from "@/components/ui/sonner";
         <Route path="/emp/requests/new" component={() => <EmpPortalRoute component={PortalNewRequest} />} />
         <Route path="/emp/requests" component={() => <EmpPortalRoute component={PortalRequests} />} />
         <Route path="/emp/notifications" component={() => <EmpPortalRoute component={PortalNotifications} />} />
+        <Route path="/emp/attendance" component={() => <EmpPortalRoute component={PortalAttendance} />} />
         <Route path="/emp/manager" component={() => <EmpPortalRoute component={ManagerPortal} />} />
         <Route path="/emp" component={() => <EmpPortalRoute component={PortalDashboard} />} />
 
