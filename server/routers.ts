@@ -677,9 +677,23 @@ const importRouter = router({
       const depts = await db.getDepartments(undefined);
       const dept = depts?.find((d: any) => d.id === emp.departmentId) ?? null;
       const isManager = depts?.some((d: any) => d.directManagerId === ctx.empEmployeeId) ?? false;
-      let directManagerEmp = null;
+      let directManagerEmp: any = null;
       if (dept?.directManagerId) {
         directManagerEmp = await db.getEmployeeById(dept.directManagerId);
+      }
+      // Business rule: every dentist's Direct Manager is their Branch Manager.
+      const isDentist =
+        /dentist/i.test(emp.jobTitle ?? "") || /أسنان|اسنان/.test(emp.jobTitleAr ?? "");
+      if (isDentist && emp.branchId) {
+        const branch = await db.getBranchById(emp.branchId);
+        const branchManagerName = branch?.managerName?.trim();
+        if (branchManagerName) {
+          const sp = branchManagerName.indexOf(" ");
+          directManagerEmp =
+            sp === -1
+              ? { firstName: branchManagerName, lastName: "" }
+              : { firstName: branchManagerName.slice(0, sp), lastName: branchManagerName.slice(sp + 1) };
+        }
       }
       return { ...emp, department: dept, directManager: directManagerEmp, isManager };
     }),
