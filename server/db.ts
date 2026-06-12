@@ -699,8 +699,8 @@ export async function deleteAttendanceRecord(id: number) {
 export async function recordGpsPunch(input: {
   employeeId: number;
   type: "check_in" | "check_out";
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   accuracyMeters?: number | null;
   method?: string;
   ipAddress?: string | null;
@@ -716,7 +716,9 @@ export async function recordGpsPunch(input: {
   const { localDate } = nowInTimezone(tz);
 
   const radius = branch?.geofenceRadiusMeters ?? 100;
+  const geofenceEnabled = branch?.geofenceEnabled ?? true;
   const hasBranchGeo = !!(branch && branch.latitude != null && branch.longitude != null);
+  const hasPunchCoords = input.latitude != null && input.longitude != null;
 
   let distanceMeters: number | null = null;
   let withinGeofence = false;
@@ -724,12 +726,27 @@ export async function recordGpsPunch(input: {
 
   if (!branch) {
     rejectionReason = "no_branch_assigned";
+  } else if (!geofenceEnabled) {
+    // Branch is exempt from GPS geofencing (e.g. management / remote staff):
+    // accept the punch regardless of location. Distance is recorded for audit
+    // only when both the branch and the punch have coordinates.
+    if (hasBranchGeo && hasPunchCoords) {
+      distanceMeters = haversineMeters(
+        input.latitude as number,
+        input.longitude as number,
+        Number(branch.latitude),
+        Number(branch.longitude)
+      );
+    }
+    withinGeofence = true;
   } else if (!hasBranchGeo) {
     rejectionReason = "branch_not_configured";
+  } else if (!hasPunchCoords) {
+    rejectionReason = "location_required";
   } else {
     distanceMeters = haversineMeters(
-      input.latitude,
-      input.longitude,
+      input.latitude as number,
+      input.longitude as number,
       Number(branch.latitude),
       Number(branch.longitude)
     );
@@ -760,8 +777,8 @@ export async function recordGpsPunch(input: {
     method: input.method ?? "gps",
     eventAt: new Date(),
     localDate,
-    latitude: String(input.latitude),
-    longitude: String(input.longitude),
+    latitude: input.latitude != null ? String(input.latitude) : null,
+    longitude: input.longitude != null ? String(input.longitude) : null,
     accuracyMeters: input.accuracyMeters != null ? String(input.accuracyMeters) : null,
     distanceMeters: distanceMeters != null ? String(distanceMeters) : null,
     withinGeofence,

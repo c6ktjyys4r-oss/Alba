@@ -47,14 +47,14 @@ export default function PortalAttendance() {
 
   const checkInMut = trpc.empPortal.checkIn.useMutation({
     onSuccess: (d: any) => {
-      toast.success(`Checked in at ${d.time} · ${d.distanceMeters}m from branch`);
+      toast.success(`Checked in at ${d.time}${d.distanceMeters != null ? ` · ${d.distanceMeters}m from branch` : ""}`);
       utils.empPortal.attendanceStatus.invalidate();
       utils.empPortal.myAttendanceHistory.invalidate();
     },
   });
   const checkOutMut = trpc.empPortal.checkOut.useMutation({
     onSuccess: (d: any) => {
-      toast.success(`Checked out at ${d.time} · ${d.distanceMeters}m from branch`);
+      toast.success(`Checked out at ${d.time}${d.distanceMeters != null ? ` · ${d.distanceMeters}m from branch` : ""}`);
       utils.empPortal.attendanceStatus.invalidate();
       utils.empPortal.myAttendanceHistory.invalidate();
     },
@@ -63,12 +63,19 @@ export default function PortalAttendance() {
   const doPunch = async (type: "check_in" | "check_out") => {
     setBusy(type);
     try {
-      const pos = await getPosition();
-      const payload = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-      };
+      const exempt = status?.branch?.geofenceEnabled === false;
+      let payload: { latitude?: number; longitude?: number; accuracy?: number } = {};
+      try {
+        const pos = await getPosition();
+        payload = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
+      } catch (geoErr) {
+        if (!exempt) throw geoErr;
+        // Geofence-exempt branch (e.g. management / remote staff): location is optional.
+      }
       if (type === "check_in") await checkInMut.mutateAsync(payload);
       else await checkOutMut.mutateAsync(payload);
     } catch (e: any) {
@@ -83,7 +90,7 @@ export default function PortalAttendance() {
 
   return (
     <PortalLayout>
-      <div className="p-8 max-w-4xl">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-slate-900">Attendance</h1>
           <p className="text-slate-500 mt-1">
@@ -106,7 +113,11 @@ export default function PortalAttendance() {
                   {status?.branch && (
                     <p className="text-sm text-slate-500 mt-1">
                       Branch: <span className="font-medium text-slate-700">{status.branch.name}</span>
-                      {status.branch.geofenceRadiusMeters ? ` · allowed radius ${status.branch.geofenceRadiusMeters}m` : ""}
+                      {status.branch.geofenceEnabled === false
+                        ? " · GPS check not required"
+                        : status.branch.geofenceRadiusMeters
+                        ? ` · allowed radius ${status.branch.geofenceRadiusMeters}m`
+                        : ""}
                     </p>
                   )}
                 </div>
@@ -168,7 +179,9 @@ export default function PortalAttendance() {
                 </button>
               </div>
               <p className="text-xs text-slate-400 mt-3 text-center">
-                Your location is captured only when you tap a button, and only to confirm you are at your branch.
+                {status?.branch?.geofenceEnabled === false
+                  ? "You can check in or out from anywhere — GPS location is optional for your branch."
+                  : "Your location is captured only when you tap a button, and only to confirm you are at your branch."}
               </p>
             </>
           )}

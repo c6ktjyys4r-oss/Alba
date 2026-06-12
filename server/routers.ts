@@ -29,6 +29,7 @@ const branchRouter = router({
     workEndTime: z.string().optional(),
     timezone: z.string().optional(),
     lateGraceMinutes: z.number().int().min(0).optional(),
+    geofenceEnabled: z.boolean().optional(),
   })).mutation(({ input }) => {
     const { latitude, longitude, ...rest } = input;
     const data: any = { ...rest };
@@ -52,6 +53,7 @@ const branchRouter = router({
     workEndTime: z.string().optional(),
     timezone: z.string().optional(),
     lateGraceMinutes: z.number().int().min(0).optional(),
+    geofenceEnabled: z.boolean().optional(),
   })).mutation(({ input }) => {
     const { id, latitude, longitude, ...rest } = input;
     const data: any = { ...rest };
@@ -604,7 +606,7 @@ const importRouter = router({
 
   async function recordEmpPunch(
     ctx: any,
-    input: { latitude: number; longitude: number; accuracy?: number },
+    input: { latitude?: number; longitude?: number; accuracy?: number },
     type: "check_in" | "check_out"
   ) {
     const result = await db.recordGpsPunch({
@@ -622,6 +624,8 @@ const importRouter = router({
         throw new Error("You are not assigned to a branch yet. Please contact HR.");
       if (result.rejectionReason === "branch_not_configured")
         throw new Error("Your branch location has not been configured yet. Please contact your administrator.");
+      if (result.rejectionReason === "location_required")
+        throw new Error("Location access is required to check in at this branch. Please enable location and try again.");
       if (result.rejectionReason === "already_checked_in")
         throw new Error("You are already checked in. Please check out first.");
       if (result.rejectionReason === "not_checked_in")
@@ -768,7 +772,8 @@ const importRouter = router({
       const checkedIn = acceptedIns.length > acceptedOuts.length;
 
       const [daily] = await db.getAttendance({ employeeId: ctx.empEmployeeId, date: localDate });
-      const branchConfigured = !!(branch && branch.latitude != null && branch.longitude != null);
+      const geofenceEnabled = branch?.geofenceEnabled ?? true;
+      const branchConfigured = !!branch && (!geofenceEnabled || (branch.latitude != null && branch.longitude != null));
 
       return {
         timezone: tz,
@@ -778,6 +783,7 @@ const importRouter = router({
               id: branch.id,
               name: branch.name,
               geofenceRadiusMeters: branch.geofenceRadiusMeters ?? 100,
+              geofenceEnabled,
               configured: branchConfigured,
             }
           : null,
@@ -807,11 +813,11 @@ const importRouter = router({
       ),
 
     checkIn: empProtectedProcedure
-      .input(z.object({ latitude: z.number(), longitude: z.number(), accuracy: z.number().optional() }))
+      .input(z.object({ latitude: z.number().optional(), longitude: z.number().optional(), accuracy: z.number().optional() }))
       .mutation(({ ctx, input }) => recordEmpPunch(ctx, input, "check_in")),
 
     checkOut: empProtectedProcedure
-      .input(z.object({ latitude: z.number(), longitude: z.number(), accuracy: z.number().optional() }))
+      .input(z.object({ latitude: z.number().optional(), longitude: z.number().optional(), accuracy: z.number().optional() }))
       .mutation(({ ctx, input }) => recordEmpPunch(ctx, input, "check_out")),
 
     // Admin-only: create or reset employee portal credentials

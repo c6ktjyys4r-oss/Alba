@@ -41,6 +41,7 @@ export const branches = pgTable("branches", {
   latitude: decimal("latitude", { precision: 10, scale: 7 }),
   longitude: decimal("longitude", { precision: 10, scale: 7 }),
   geofenceRadiusMeters: integer("geofenceRadiusMeters").default(100).notNull(),
+  geofenceEnabled: boolean("geofenceEnabled").default(true).notNull(),
   workStartTime: varchar("workStartTime", { length: 5 }),
   workEndTime: varchar("workEndTime", { length: 5 }),
   timezone: varchar("timezone", { length: 64 }).default("Asia/Riyadh").notNull(),
