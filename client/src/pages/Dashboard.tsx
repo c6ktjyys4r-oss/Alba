@@ -14,7 +14,7 @@ function StatCard({ title, value, icon, color, subtitle }: {
   color: string; subtitle?: string;
 }) {
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+    <Card className="border-0 shadow-sm">
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div>

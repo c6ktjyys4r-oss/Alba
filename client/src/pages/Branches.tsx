@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { employeeName, localizedName } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import PageHeader from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ const defaultBranchForm = { name:"", nameAr:"", address:"", phone:"", email:"", 
 const defaultDeptForm = { name:"", nameAr:"", branchId:"", directManagerId:"" };
 
 export default function Branches() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [tab, setTab] = useState("branches");
   const [branchDialog, setBranchDialog] = useState(false);
   const [deptDialog, setDeptDialog] = useState(false);
@@ -139,7 +140,7 @@ export default function Branches() {
                     <tr key={d.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 font-medium text-slate-900">{d.name}</td>
                       <td className="px-4 py-3 text-slate-600">{d.nameAr||"—"}</td>
-                      <td className="px-4 py-3 text-slate-600">{branch?.name||"—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{localizedName(lang,branch)||"—"}</td>
                       <td className="px-4 py-3 text-slate-600">{empCount}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -235,7 +236,7 @@ export default function Branches() {
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select branch"/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("common.none")}</SelectItem>
-                  {branches.map(b=><SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+                  {branches.map(b=><SelectItem key={b.id} value={String(b.id)}>{localizedName(lang,b)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -245,7 +246,7 @@ export default function Branches() {
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select manager"/></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">{t("common.none")}</SelectItem>
-                  {employees.map((e: any)=><SelectItem key={e.id} value={String(e.id)}>{e.firstName} {e.lastName}{e.jobTitle?` · ${e.jobTitle}`:""}</SelectItem>)}
+                  {employees.map((e: any)=><SelectItem key={e.id} value={String(e.id)}>{employeeName(lang,e)}{e.jobTitle?` · ${e.jobTitle}`:""}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-slate-400">Employees in this department see this person as their Direct Manager and requests route to them.</p>

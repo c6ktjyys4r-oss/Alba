@@ -2,6 +2,7 @@ import { useParams } from "wouter";
   import { useState } from "react";
   import { trpc } from "@/lib/trpc";
   import { useLanguage } from "@/contexts/LanguageContext";
+  import { employeeName, jobTitle as jobTitleOf, localizedName } from "@/lib/i18n";
   import { Button } from "@/components/ui/button";
   import { ChevronLeft, User2, Briefcase, DollarSign, FileText, ExternalLink, Edit2, Check, X } from "lucide-react";
   import { cn } from "@/lib/utils";
@@ -26,7 +27,7 @@ import { useParams } from "wouter";
 
   export default function EmployeeProfile() {
     const params = useParams<{ id: string }>();
-    const { t } = useLanguage();
+    const { t, lang } = useLanguage();
     const empId = Number(params.id);
 
     const [editing, setEditing] = useState(false);
@@ -114,11 +115,11 @@ import { useParams } from "wouter";
             {(emp.firstName||"")[0]}{(emp.lastName||"")[0]}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-slate-900">{emp.firstName} {emp.lastName}</h1>
-            {(emp.firstNameAr||emp.lastNameAr) && (
-              <p className="text-slate-500 text-sm">{emp.firstNameAr} {emp.lastNameAr}</p>
+            <h1 className="text-xl font-bold text-slate-900">{employeeName(lang,emp)}</h1>
+            {employeeName(lang==="ar"?"en":"ar",emp) && employeeName(lang==="ar"?"en":"ar",emp) !== employeeName(lang,emp) && (
+              <p className="text-slate-500 text-sm">{employeeName(lang==="ar"?"en":"ar",emp)}</p>
             )}
-            <p className="text-slate-500 text-sm mt-0.5">{emp.jobTitle||"—"}</p>
+            <p className="text-slate-500 text-sm mt-0.5">{jobTitleOf(lang,emp)||"—"}</p>
           </div>
           <span className={`text-sm px-3 py-1 rounded-full font-medium badge-${emp.status}`}>{emp.status}</span>
         </div>
@@ -172,7 +173,7 @@ import { useParams } from "wouter";
 
             {/* Job Title — editable */}
             {!editing ? (
-              <InfoRow label="Job Title" value={emp.jobTitle}/>
+              <InfoRow label="Job Title" value={jobTitleOf(lang,emp)}/>
             ) : (
               <EditRow label="Job Title">
                 <input
@@ -186,7 +187,7 @@ import { useParams } from "wouter";
 
             {/* Branch — editable */}
             {!editing ? (
-              <InfoRow label="Branch" value={branch?.name}/>
+              <InfoRow label="Branch" value={localizedName(lang,branch)}/>
             ) : (
               <EditRow label="Branch">
                 <select
@@ -199,7 +200,7 @@ import { useParams } from "wouter";
                 >
                   <option value="">— Select branch —</option>
                   {(branches as any[]).map((b:any)=>(
-                    <option key={b.id} value={b.id}>{b.name}</option>
+                    <option key={b.id} value={b.id}>{localizedName(lang,b)}</option>
                   ))}
                 </select>
               </EditRow>
@@ -207,7 +208,7 @@ import { useParams } from "wouter";
 
             {/* Department — editable */}
             {!editing ? (
-              <InfoRow label="Department" value={dept?.name}/>
+              <InfoRow label="Department" value={localizedName(lang,dept)}/>
             ) : (
               <EditRow label="Department">
                 <select
@@ -217,7 +218,7 @@ import { useParams } from "wouter";
                 >
                   <option value="">— Select department —</option>
                   {filteredDepts.map((d:any)=>(
-                    <option key={d.id} value={d.id}>{d.name}</option>
+                    <option key={d.id} value={d.id}>{localizedName(lang,d)}</option>
                   ))}
                 </select>
               </EditRow>
