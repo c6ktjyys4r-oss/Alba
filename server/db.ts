@@ -84,10 +84,26 @@ export async function getBranches() {
   return db.select().from(branches).orderBy(asc(branches.name));
 }
 
+// Departments created automatically for every new branch. Super Admins can
+// still add/edit/delete departments afterwards.
+export const DEFAULT_BRANCH_DEPARTMENTS: { name: string; nameAr: string }[] = [
+  { name: "Branch Management", nameAr: "إدارة الفرع" },
+  { name: "Reception", nameAr: "الاستقبال" },
+  { name: "Doctors", nameAr: "الأطباء" },
+  { name: "Nursing", nameAr: "التمريض" },
+];
+
 export async function createBranch(data: any) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  return db.insert(branches).values(data).returning();
+  const created = await db.insert(branches).values(data).returning();
+  const branchId = created?.[0]?.id;
+  if (branchId) {
+    await db.insert(departments).values(
+      DEFAULT_BRANCH_DEPARTMENTS.map((d) => ({ ...d, branchId })),
+    );
+  }
+  return created;
 }
 
 export async function updateBranch(id: number, data: any) {
