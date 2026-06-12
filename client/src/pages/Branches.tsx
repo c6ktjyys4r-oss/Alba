@@ -33,7 +33,7 @@ export default function Branches() {
   const { data: departments = [], isLoading: loadDepts } = trpc.department.list.useQuery();
   const { data: employees = [] } = trpc.employee.list.useQuery({});
 
-  const createBranch = trpc.branch.create.useMutation({ onSuccess:()=>{ utils.branch.list.invalidate(); toast.success("Branch created"); setBranchDialog(false); setBranchForm({...defaultBranchForm}); }, onError:(e)=>toast.error(e.message) });
+  const createBranch = trpc.branch.create.useMutation({ onSuccess:()=>{ utils.branch.list.invalidate(); utils.department.list.invalidate(); toast.success("Branch created"); setBranchDialog(false); setBranchForm({...defaultBranchForm}); }, onError:(e)=>toast.error(e.message) });
   const updateBranch = trpc.branch.update.useMutation({ onSuccess:()=>{ utils.branch.list.invalidate(); toast.success("Branch updated"); setBranchDialog(false); }, onError:(e)=>toast.error(e.message) });
   const deleteBranch = trpc.branch.delete.useMutation({ onSuccess:()=>{ utils.branch.list.invalidate(); toast.success("Branch deleted"); }, onError:(e)=>toast.error(e.message) });
   const createDept = trpc.department.create.useMutation({ onSuccess:()=>{ utils.department.list.invalidate(); toast.success("Department created"); setDeptDialog(false); setDeptForm({...defaultDeptForm}); }, onError:(e)=>toast.error(e.message) });
