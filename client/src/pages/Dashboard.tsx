@@ -31,7 +31,7 @@ function StatCard({ title, value, icon, color, subtitle }: {
   );
 }
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+const COLORS = ["#6D7B74", "#C1CDC7", "#E5B6A6", "#7C6E6C", "#97A8A0"];
 
 export default function Dashboard() {
   const { t } = useLanguage();
@@ -47,10 +47,10 @@ export default function Dashboard() {
   ];
 
   const taskData = [
-    { name: "Pending", value: 12, color: "#f59e0b" },
-    { name: "In Progress", value: 8, color: "#3b82f6" },
-    { name: "Completed", value: 25, color: "#10b981" },
-    { name: "Overdue", value: stats?.overdueTasks || 0, color: "#ef4444" },
+    { name: "Pending", value: 12, color: "#C1CDC7" },
+    { name: "In Progress", value: 8, color: "#E5B6A6" },
+    { name: "Completed", value: 25, color: "#6D7B74" },
+    { name: "Overdue", value: stats?.overdueTasks || 0, color: "#CE8B7B" },
   ];
 
   if (isLoading) {
@@ -71,14 +71,14 @@ export default function Dashboard() {
 
       {/* KPI Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title={t("dashboard.totalEmployees")} value={stats?.totalEmployees || 0} icon={<Users size={18} className="text-white" />} color="bg-blue-500" />
-        <StatCard title={t("dashboard.activeContracts")} value={stats?.activeContracts || 0} icon={<FileText size={18} className="text-white" />} color="bg-emerald-500" subtitle={`${stats?.expiringContracts || 0} ${t("dashboard.expiringContracts")}`} />
-        <StatCard title={t("dashboard.todayAttendance")} value={stats?.todayAttendance || 0} icon={<Clock size={18} className="text-white" />} color="bg-violet-500" subtitle={`${stats?.lateToday || 0} ${t("dashboard.lateArrivals")}`} />
-        <StatCard title={t("dashboard.openTasks")} value={stats?.openTasks || 0} icon={<CheckSquare size={18} className="text-white" />} color="bg-amber-500" subtitle={`${stats?.overdueTasks || 0} ${t("dashboard.overdueTasks")}`} />
-        <StatCard title={t("dashboard.totalRevenue")} value={`${(stats?.monthRevenue || 0).toLocaleString()} ${t("common.currency")}`} icon={<TrendingUp size={18} className="text-white" />} color="bg-green-500" subtitle="This month" />
-        <StatCard title={t("dashboard.totalExpenses")} value={`${(stats?.monthExpenses || 0).toLocaleString()} ${t("common.currency")}`} icon={<TrendingDown size={18} className="text-white" />} color="bg-red-500" subtitle="This month" />
-        <StatCard title={t("dashboard.netProfit")} value={`${(stats?.netProfit || 0).toLocaleString()} ${t("common.currency")}`} icon={<DollarSign size={18} className="text-white" />} color={stats?.netProfit && stats.netProfit >= 0 ? "bg-teal-500" : "bg-red-500"} />
-        <StatCard title={t("dashboard.lowStockAlerts")} value={stats?.lowStockCount || 0} icon={<AlertTriangle size={18} className="text-white" />} color="bg-orange-500" />
+        <StatCard title={t("dashboard.totalEmployees")} value={stats?.totalEmployees || 0} icon={<Users size={18} className="text-[#6D7B74]" />} color="bg-[#E7ECE9] text-[#6D7B74]" />
+        <StatCard title={t("dashboard.activeContracts")} value={stats?.activeContracts || 0} icon={<FileText size={18} className="text-[#4F8A6B]" />} color="bg-[#E4F0EA] text-[#4F8A6B]" subtitle={`${stats?.expiringContracts || 0} ${t("dashboard.expiringContracts")}`} />
+        <StatCard title={t("dashboard.todayAttendance")} value={stats?.todayAttendance || 0} icon={<Clock size={18} className="text-[#7C6E6C]" />} color="bg-[#F2ECEA] text-[#7C6E6C]" subtitle={`${stats?.lateToday || 0} ${t("dashboard.lateArrivals")}`} />
+        <StatCard title={t("dashboard.openTasks")} value={stats?.openTasks || 0} icon={<CheckSquare size={18} className="text-[#C58A74]" />} color="bg-[#F7ECE7] text-[#C58A74]" subtitle={`${stats?.overdueTasks || 0} ${t("dashboard.overdueTasks")}`} />
+        <StatCard title={t("dashboard.totalRevenue")} value={`${(stats?.monthRevenue || 0).toLocaleString()} ${t("common.currency")}`} icon={<TrendingUp size={18} className="text-[#4F8A6B]" />} color="bg-[#E4F0EA] text-[#4F8A6B]" subtitle="This month" />
+        <StatCard title={t("dashboard.totalExpenses")} value={`${(stats?.monthExpenses || 0).toLocaleString()} ${t("common.currency")}`} icon={<TrendingDown size={18} className="text-[#B5705E]" />} color="bg-[#F6E9E6] text-[#B5705E]" subtitle="This month" />
+        <StatCard title={t("dashboard.netProfit")} value={`${(stats?.netProfit || 0).toLocaleString()} ${t("common.currency")}`} icon={<DollarSign size={18} className={stats?.netProfit && stats.netProfit >= 0 ? "text-[#6D7B74]" : "text-[#B5705E]"} />} color={stats?.netProfit && stats.netProfit >= 0 ? "bg-[#E7ECE9] text-[#6D7B74]" : "bg-[#F6E9E6] text-[#B5705E]"} />
+        <StatCard title={t("dashboard.lowStockAlerts")} value={stats?.lowStockCount || 0} icon={<AlertTriangle size={18} className="text-[#B08A4A]" />} color="bg-[#F7EFE2] text-[#B08A4A]" />
       </div>
 
       {/* Charts Row */}
@@ -95,8 +95,8 @@ export default function Dashboard() {
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }} />
-                <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Revenue" />
-                <Bar dataKey="expenses" fill="#f87171" radius={[4, 4, 0, 0]} name="Expenses" />
+                <Bar dataKey="revenue" fill="#6D7B74" radius={[4, 4, 0, 0]} name="Revenue" />
+                <Bar dataKey="expenses" fill="#E5B6A6" radius={[4, 4, 0, 0]} name="Expenses" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

@@ -76,10 +76,10 @@ export default function AIAssistant() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, idx) => (
             <div key={idx} className={cn("flex gap-3", msg.role==="user"&&"flex-row-reverse")}>
-              <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0", msg.role==="assistant"?"bg-blue-100":"bg-slate-100")}>
-                {msg.role==="assistant" ? <Bot size={16} className="text-blue-600"/> : <User size={16} className="text-slate-600"/>}
+              <div className={cn("w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0", msg.role==="assistant"?"bg-[#E7ECE9]":"bg-slate-100")}>
+                {msg.role==="assistant" ? <Bot size={16} className="text-[#6D7B74]"/> : <User size={16} className="text-slate-600"/>}
               </div>
-              <div className={cn("max-w-[75%] rounded-2xl px-4 py-3 text-sm", msg.role==="assistant"?"bg-slate-50 text-slate-800 rounded-tl-sm":"bg-blue-600 text-white rounded-tr-sm")}>
+              <div className={cn("max-w-[75%] rounded-2xl px-4 py-3 text-sm", msg.role==="assistant"?"bg-slate-50 text-slate-800 rounded-tl-sm":"bg-[#6D7B74] text-white rounded-tr-sm")}>
                 {msg.role==="assistant" ? (
                   <div className="prose prose-sm max-w-none">
                     <Streamdown>{msg.content}</Streamdown>
@@ -93,9 +93,9 @@ export default function AIAssistant() {
           ))}
           {isLoading && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0"><Bot size={16} className="text-blue-600"/></div>
+              <div className="w-8 h-8 rounded-full bg-[#E7ECE9] flex items-center justify-center flex-shrink-0"><Bot size={16} className="text-[#6D7B74]"/></div>
               <div className="bg-slate-50 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin text-blue-600"/>
+                <Loader2 size={14} className="animate-spin text-[#6D7B74]"/>
                 <span className="text-sm text-slate-500">{t("ai.thinking")}</span>
               </div>
             </div>
@@ -109,7 +109,7 @@ export default function AIAssistant() {
             <p className="text-xs text-slate-400 mb-2 flex items-center gap-1"><Sparkles size={12}/>{t("ai.suggestions")}</p>
             <div className="flex flex-wrap gap-2">
               {quickPrompts.map((prompt,i)=>(
-                <button key={i} onClick={()=>sendMessage(prompt)} className="text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition-colors border border-blue-100">
+                <button key={i} onClick={()=>sendMessage(prompt)} className="text-xs px-3 py-1.5 bg-[#F0F4F2] text-[#4A574F] rounded-full hover:bg-[#E7ECE9] transition-colors border border-[#E0E8E4]">
                   {prompt}
                 </button>
               ))}

@@ -116,7 +116,7 @@ export default function Employees() {
                   <tr key={emp.id} onClick={()=>navigate(`/employees/${emp.id}`)} className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8"><AvatarFallback className="text-xs bg-blue-100 text-blue-700">{initials}</AvatarFallback></Avatar>
+                        <Avatar className="w-8 h-8"><AvatarFallback className="text-xs bg-[#E7ECE9] text-[#4A574F]">{initials}</AvatarFallback></Avatar>
                         <div><p className="font-medium text-slate-900">{employeeName(lang,emp)}</p><p className="text-xs text-slate-400">{emp.email}</p></div>
                       </div>
                     </td>

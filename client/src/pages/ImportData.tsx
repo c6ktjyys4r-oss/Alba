@@ -65,11 +65,11 @@ export default function ImportData() {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <Upload size={20} className="text-blue-600" />
+            <div className="flex items-center gap-3 p-4 bg-[#F0F4F2] rounded-lg border border-[#CDD8D2]">
+              <Upload size={20} className="text-[#6D7B74]" />
               <div>
-                <p className="font-medium text-blue-900">Staff Data Ready</p>
-                <p className="text-sm text-blue-700">{staffData.length} records found</p>
+                <p className="font-medium text-[#3F4844]">Staff Data Ready</p>
+                <p className="text-sm text-[#4A574F]">{staffData.length} records found</p>
               </div>
             </div>
 

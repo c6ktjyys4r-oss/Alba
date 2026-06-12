@@ -99,8 +99,8 @@ import { useParams } from "wouter";
     const gosiAmt    = Math.round((basic + housing) * gosiPct) / 100;
     const net        = basic + housing + transport + otherAllow - gosiAmt - otherDed;
 
-    const selectCls = "w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 text-slate-900";
-    const inputCls  = "w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 text-slate-900";
+    const selectCls = "w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-[#8B9A92] text-slate-900";
+    const inputCls  = "w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-[#8B9A92] text-slate-900";
 
     return (
       <div className="p-4 lg:p-6 max-w-4xl mx-auto space-y-5">
@@ -111,7 +111,7 @@ import { useParams } from "wouter";
 
         {/* Hero */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 flex items-center gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-xl font-bold text-blue-700 flex-shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-[#E7ECE9] flex items-center justify-center text-xl font-bold text-[#4A574F] flex-shrink-0">
             {(emp.firstName||"")[0]}{(emp.lastName||"")[0]}
           </div>
           <div className="flex-1 min-w-0">
@@ -128,7 +128,7 @@ import { useParams } from "wouter";
           {/* Personal Info */}
           <section className="bg-white rounded-2xl border border-slate-200 p-5">
             <div className="flex items-center gap-2 mb-3">
-              <User2 size={16} className="text-blue-500"/>
+              <User2 size={16} className="text-[#6D7B74]"/>
               <h2 className="font-semibold text-slate-900">Personal Information</h2>
             </div>
             <InfoRow label="Email"         value={emp.email}/>
@@ -144,11 +144,11 @@ import { useParams } from "wouter";
           <section className="bg-white rounded-2xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Briefcase size={16} className="text-violet-500"/>
+                <Briefcase size={16} className="text-[#7C6E6C]"/>
                 <h2 className="font-semibold text-slate-900">Employment Information</h2>
               </div>
               {!editing ? (
-                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-slate-500 hover:text-violet-600 px-2" onClick={openEdit}>
+                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-slate-500 hover:text-[#7C6E6C] px-2" onClick={openEdit}>
                   <Edit2 size={13}/> Edit
                 </Button>
               ) : (
@@ -247,9 +247,9 @@ import { useParams } from "wouter";
                 { label:"GOSI Rate",           value:`${gosiPct}%`, fmt:false, cls:"text-slate-600" },
                 { label:"GOSI Deduction",      value:gosiAmt,       fmt:true,  cls:"text-red-500"   },
                 { label:"Other Deductions",    value:otherDed,      fmt:true,  cls:"text-red-500"   },
-                { label:"Net Salary",          value:net,           fmt:true,  cls:"text-blue-700 font-bold text-base", hi:true },
+                { label:"Net Salary",          value:net,           fmt:true,  cls:"text-[#4A574F] font-bold text-base", hi:true },
               ] as any[]).map(item=>(
-                <div key={item.label} className={cn("rounded-xl p-3", item.hi ? "bg-blue-50 border border-blue-100 col-span-2 md:col-span-1" : "bg-slate-50")}>
+                <div key={item.label} className={cn("rounded-xl p-3", item.hi ? "bg-[#F0F4F2] border border-[#E0E8E4] col-span-2 md:col-span-1" : "bg-slate-50")}>
                   <p className="text-xs text-slate-500 mb-1">{item.label}</p>
                   <p className={cn("text-sm", item.cls)}>
                     {item.fmt ? `${Number(item.value).toLocaleString()} SAR` : item.value}
@@ -275,14 +275,14 @@ import { useParams } from "wouter";
             <div className="space-y-2">
               {(documents as any[]).map((doc:any)=>(
                 <a key={doc.id} href={doc.fileUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-blue-200 transition-colors group">
+                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:bg-slate-50 hover:border-[#CDD8D2] transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
                       <FileText size={14} className="text-amber-500"/>
                     </div>
                     <span className="text-sm font-medium text-slate-900">{doc.name}</span>
                   </div>
-                  <ExternalLink size={13} className="text-slate-400 group-hover:text-blue-500 transition-colors"/>
+                  <ExternalLink size={13} className="text-slate-400 group-hover:text-[#6D7B74] transition-colors"/>
                 </a>
               ))}
             </div>

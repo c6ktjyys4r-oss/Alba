@@ -42,7 +42,7 @@ export default function LoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none focus:ring-1 focus:ring-[#6D7B74]"
                 placeholder="Enter username"
                 required
               />
@@ -57,7 +57,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none focus:ring-1 focus:ring-[#6D7B74]"
                 placeholder="Enter password"
                 required
               />
@@ -72,7 +72,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loginMutation.isPending}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-[#6D7B74] px-4 py-2 text-sm font-medium text-white hover:bg-[#5C6862] focus:outline-none focus:ring-2 focus:ring-[#6D7B74] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loginMutation.isPending ? "Signing in..." : "Sign in"}
             </button>

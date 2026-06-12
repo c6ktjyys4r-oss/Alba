@@ -63,7 +63,7 @@ import PortalLayout from "./PortalLayout";
               <p className="text-slate-500 mt-1">Track all your submitted requests</p>
             </div>
             <Link href="/emp/requests/new"
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#6D7B74] text-white rounded-lg text-sm font-medium hover:bg-[#5C6862] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               New Request
@@ -78,7 +78,7 @@ import PortalLayout from "./PortalLayout";
                 <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
               </div>
               <p className="text-slate-500 font-medium">No requests yet</p>
-              <Link href="/emp/requests/new" className="mt-3 inline-block text-sm text-blue-600 hover:underline">Submit your first request →</Link>
+              <Link href="/emp/requests/new" className="mt-3 inline-block text-sm text-[#6D7B74] hover:underline">Submit your first request →</Link>
             </div>
           ) : (
             <div className="space-y-8">

@@ -139,7 +139,7 @@ export default function Payroll() {
                     <td className="px-4 py-3 text-slate-600">{Number(p.basicSalary||0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-green-600">+{Number(p.totalAllowances||0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-red-500">-{Number(p.totalDeductions||0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-blue-600">{Number(p.bonus||0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-[#6D7B74]">{Number(p.bonus||0).toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold text-slate-900">{Number(p.netSalary||0).toLocaleString()} {t("common.currency")}</td>
                     <td className="px-4 py-3">
                       <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",`badge-${p.status}`)}>{t(`payroll.${p.status}`)}</span>

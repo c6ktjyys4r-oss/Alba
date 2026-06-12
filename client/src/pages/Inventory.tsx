@@ -118,7 +118,7 @@ export default function Inventory() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-slate-500 text-xs">{item.itemCode||"—"}</td>
-                        <td className="px-4 py-3"><span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{item.category||"—"}</span></td>
+                        <td className="px-4 py-3"><span className="text-xs bg-[#F0F4F2] text-[#4A574F] px-2 py-0.5 rounded-full">{item.category||"—"}</span></td>
                         <td className="px-4 py-3 text-slate-600">{branch?.name||"—"}</td>
                         <td className={cn("px-4 py-3 font-semibold", isLow?"text-red-600":"text-slate-900")}>{Number(item.quantity)} {item.unit||""}</td>
                         <td className="px-4 py-3 text-slate-500">{Number(item.minimumStock)}</td>

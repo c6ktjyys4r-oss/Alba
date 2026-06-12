@@ -127,7 +127,7 @@ import { useState } from "react";
                         {req.reason && <p className="text-sm text-slate-600 mt-2 italic">"{req.reason}"</p>}
                         {req.attachmentUrl && (
                           <a href={req.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 mt-2 text-sm text-blue-600 hover:underline">
+                            className="inline-flex items-center gap-1 mt-2 text-sm text-[#6D7B74] hover:underline">
                             📎 View attached document
                           </a>
                         )}
@@ -154,7 +154,7 @@ import { useState } from "react";
                               value={comment[req.id] ?? ""}
                               onChange={(e) => setComment((prev) => ({ ...prev, [req.id]: e.target.value }))}
                               rows={2} placeholder="Optional comment for employee..."
-                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none"
+                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none resize-none"
                             />
                             <div className="flex gap-2">
                               <button type="button" onClick={() => setReviewing(null)}

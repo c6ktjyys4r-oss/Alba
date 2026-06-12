@@ -32,7 +32,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#6D7B74] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -52,7 +52,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
       >
         <div className="p-5 border-b border-slate-100 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-[#E7ECE9] flex items-center justify-center text-[#4A574F] font-bold text-lg flex-shrink-0">
               {me?.firstName?.[0]}{me?.lastName?.[0]}
             </div>
             <div className="min-w-0">
@@ -76,7 +76,7 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
             const isActive = location === item.href;
             return (
               <Link key={item.href} href={item.href} onClick={closeMobile}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-[#F0F4F2] text-[#4A574F]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
               >
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />

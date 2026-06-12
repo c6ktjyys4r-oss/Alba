@@ -11,7 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Download, Users, DollarSign, Package, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 
-const COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4"];
+const COLORS = ["#6D7B74","#C1CDC7","#E5B6A6","#7C6E6C","#97A8A0","#B08A4A"];
 
 export default function Reports() {
   const { t } = useLanguage();
@@ -92,10 +92,10 @@ export default function Reports() {
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          {icon:<Users size={18} className="text-blue-600"/>,bg:"bg-blue-50",label:t("employees.title"),value:employees.length,sub:`${empByStatus["active"]||0} ${t("employees.active")}`},
+          {icon:<Users size={18} className="text-[#6D7B74]"/>,bg:"bg-[#F0F4F2]",label:t("employees.title"),value:employees.length,sub:`${empByStatus["active"]||0} ${t("employees.active")}`},
           {icon:<DollarSign size={18} className="text-green-600"/>,bg:"bg-green-50",label:t("accounting.netProfit"),value:`${(totalRev-totalExp).toLocaleString()} ${t("common.currency")}`,sub:`Rev: ${totalRev.toLocaleString()} | Exp: ${totalExp.toLocaleString()}`},
           {icon:<Package size={18} className="text-amber-600"/>,bg:"bg-amber-50",label:t("inventory.title"),value:inventory.length,sub:`${lowStock} ${t("inventory.lowStock")}`},
-          {icon:<CheckSquare size={18} className="text-violet-600"/>,bg:"bg-violet-50",label:t("tasks.title"),value:tasks.length,sub:`${taskByStatus["completed"]||0} ${t("tasks.completed")}`},
+          {icon:<CheckSquare size={18} className="text-[#7C6E6C]"/>,bg:"bg-[#F2ECEA]",label:t("tasks.title"),value:tasks.length,sub:`${taskByStatus["completed"]||0} ${t("tasks.completed")}`},
         ].map(card=>(
           <Card key={card.label} className="border-0 shadow-sm">
             <CardContent className="p-4 flex items-center gap-3">
@@ -168,8 +168,8 @@ export default function Reports() {
                   <p className="text-xl font-bold text-green-600">{payroll.filter((p: any)=>p.status==="paid").length}</p>
                   <p className="text-xs text-slate-500">{t("payroll.paid")}</p>
                 </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xl font-bold text-blue-600">{payroll.reduce((s: number, p: any)=>s+Number(p.netSalary||0),0).toLocaleString()}</p>
+                <div className="text-center p-3 bg-[#F0F4F2] rounded-lg">
+                  <p className="text-xl font-bold text-[#6D7B74]">{payroll.reduce((s: number, p: any)=>s+Number(p.netSalary||0),0).toLocaleString()}</p>
                   <p className="text-xs text-slate-500">{t("payroll.totalPayroll")} ({t("common.currency")})</p>
                 </div>
               </div>
@@ -191,7 +191,7 @@ export default function Reports() {
                     <XAxis dataKey="name" tick={{fontSize:11,fill:"#94a3b8"}} axisLine={false} tickLine={false}/>
                     <YAxis tick={{fontSize:11,fill:"#94a3b8"}} axisLine={false} tickLine={false}/>
                     <Tooltip/>
-                    <Bar dataKey="value" fill="#10b981" radius={[4,4,0,0]} name="Revenue"/>
+                    <Bar dataKey="value" fill="#6D7B74" radius={[4,4,0,0]} name="Revenue"/>
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -227,7 +227,7 @@ export default function Reports() {
           <div className="grid grid-cols-3 gap-4">
             <Card className="border-0 shadow-sm"><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-slate-900">{inventory.length}</p><p className="text-xs text-slate-500">{t("common.total")} {t("inventory.items")}</p></CardContent></Card>
             <Card className="border-0 shadow-sm"><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-red-600">{lowStock}</p><p className="text-xs text-slate-500">{t("inventory.lowStock")}</p></CardContent></Card>
-            <Card className="border-0 shadow-sm"><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-blue-600">{totalValue.toLocaleString()}</p><p className="text-xs text-slate-500">{t("inventory.totalValue")} ({t("common.currency")})</p></CardContent></Card>
+            <Card className="border-0 shadow-sm"><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-[#6D7B74]">{totalValue.toLocaleString()}</p><p className="text-xs text-slate-500">{t("inventory.totalValue")} ({t("common.currency")})</p></CardContent></Card>
           </div>
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm">{t("inventory.lowStockAlert")}</CardTitle></CardHeader>

@@ -128,7 +128,7 @@ import { useState } from "react";
                   <button
                     key={opt.value} type="button"
                     onClick={() => { setType(opt.value); setError(""); }}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${type === opt.value ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${type === opt.value ? "border-[#6D7B74] bg-[#F0F4F2]" : "border-slate-200 bg-white hover:border-slate-300"}`}
                   >
                     <p className="text-2xl mb-1">{opt.icon}</p>
                     <p className="font-semibold text-sm text-slate-900">{opt.label}</p>
@@ -140,26 +140,26 @@ import { useState } from "react";
 
             {type === "annual_leave" && (
               <div className="space-y-4">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                <div className="p-3 bg-[#F0F4F2] border border-[#CDD8D2] rounded-lg text-sm text-[#4A574F]">
                   📋 Available balance: <strong>{annualRemaining} days</strong> of {balance?.annualDaysTotal ?? 21} · Start date must be at least 2 weeks from today
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Start Date *</label>
                     <input type="date" min={minStartDate()} value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">End Date *</label>
                     <input type="date" min={startDate || minStartDate()} value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                   </div>
                 </div>
                 {startDate && endDate && <p className="text-sm text-slate-600">Total: <strong>{calcDays()} day{calcDays() > 1 ? "s" : ""}</strong></p>}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Reason (optional)</label>
                   <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" placeholder="Additional notes..." />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none resize-none" placeholder="Additional notes..." />
                 </div>
               </div>
             )}
@@ -173,12 +173,12 @@ import { useState } from "react";
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Start Date *</label>
                     <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">End Date *</label>
                     <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                   </div>
                 </div>
                 <div>
@@ -202,7 +202,7 @@ import { useState } from "react";
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
                   <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" placeholder="Additional notes..." />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none resize-none" placeholder="Additional notes..." />
                 </div>
               </div>
             )}
@@ -217,23 +217,23 @@ import { useState } from "react";
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
                     <input type="date" value={requestedDate} onChange={(e) => setRequestedDate(e.target.value)}
                       min={new Date().toISOString().split("T")[0]}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Shift Start Time *</label>
                     <input type="time" value={shiftStartTime} onChange={(e) => setShiftStartTime(e.target.value)}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Expected Arrival Time *</label>
                   <input type="time" value={requestedTime} onChange={(e) => setRequestedTime(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Reason for Delay *</label>
                   <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" placeholder="Please explain the reason for your late arrival..." required />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none resize-none" placeholder="Please explain the reason for your late arrival..." required />
                 </div>
               </div>
             )}
@@ -244,17 +244,17 @@ import { useState } from "react";
                   <label className="block text-sm font-medium text-slate-700 mb-1">Date *</label>
                   <input type="date" value={requestedDate} onChange={(e) => setRequestedDate(e.target.value)}
                     min={new Date().toISOString().split("T")[0]}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Requested Departure Time *</label>
                   <input type="time" value={requestedTime} onChange={(e) => setRequestedTime(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" required />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Reason *</label>
                   <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" placeholder="Please explain why you need to leave early..." required />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-[#6D7B74] focus:outline-none resize-none" placeholder="Please explain why you need to leave early..." required />
                 </div>
               </div>
             )}
@@ -272,7 +272,7 @@ import { useState } from "react";
                   Cancel
                 </button>
                 <button type="submit" disabled={submitMutation.isPending || fileLoading}
-                  className="flex-1 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  className="flex-1 px-5 py-2.5 bg-[#6D7B74] text-white rounded-lg text-sm font-semibold hover:bg-[#5C6862] disabled:opacity-50 transition-colors">
                   {submitMutation.isPending ? "Submitting..." : "Submit Request"}
                 </button>
               </div>

@@ -94,7 +94,7 @@ export default function Branches() {
                 <Card key={b.id} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={()=>setLocation(`/branches/${b.id}`)}>
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center"><Building2 size={18} className="text-blue-600"/></div>
+                      <div className="w-10 h-10 rounded-xl bg-[#E7ECE9] flex items-center justify-center"><Building2 size={18} className="text-[#6D7B74]"/></div>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e)=>{e.stopPropagation();openEditBranch(b)}}><Edit size={13}/></Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={(e)=>{e.stopPropagation();deleteBranch.mutate({id:b.id})}}><Trash2 size={13}/></Button>
@@ -108,8 +108,8 @@ export default function Branches() {
                     {b.phone && <p className="text-xs text-slate-500">📞 {b.phone}</p>}
                     {b.managerName && <p className="text-xs text-slate-500">👤 {b.managerName}</p>}
                     <div className="flex gap-3 pt-2 border-t border-slate-100 mt-2">
-                      <span className="text-xs text-blue-600 font-medium">{empCount} {t("employees.title")}</span>
-                      <span className="text-xs text-violet-600 font-medium">{deptCount} {t("branches.departments")}</span>
+                      <span className="text-xs text-[#6D7B74] font-medium">{empCount} {t("employees.title")}</span>
+                      <span className="text-xs text-[#7C6E6C] font-medium">{deptCount} {t("branches.departments")}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -175,7 +175,7 @@ export default function Branches() {
               <Button type="button" variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={useCurrentLocation}><MapPin size={12}/> Use current location</Button>
             </div>
             <label className="flex items-start gap-2 mb-3 text-sm text-slate-700 cursor-pointer select-none">
-              <input type="checkbox" checked={branchForm.geofenceEnabled} onChange={e=>setBranchForm({...branchForm,geofenceEnabled:e.target.checked})} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600" />
+              <input type="checkbox" checked={branchForm.geofenceEnabled} onChange={e=>setBranchForm({...branchForm,geofenceEnabled:e.target.checked})} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#6D7B74]" />
               <span>Require GPS geofence for attendance<span className="block text-[11px] text-slate-400 font-normal">Uncheck for branches without a fixed location (e.g. management / remote staff) — they can check in/out from anywhere.</span></span>
             </label>
             <div className={`grid grid-cols-2 gap-3 ${branchForm.geofenceEnabled ? "" : "opacity-50 pointer-events-none"}`}>
