@@ -24,11 +24,11 @@ import { useState } from "react";
     };
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F0F4F2] to-[#E7ECE9] p-6">
         <div className="w-full max-w-sm">
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-[#6D7B74] rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -42,7 +42,7 @@ import { useState } from "react";
                 <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
                 <input
                   type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-[#6D7B74] focus:outline-none focus:ring-2 focus:ring-[#C1CDC7]"
                   placeholder="Enter your username" required
                 />
               </div>
@@ -50,7 +50,7 @@ import { useState } from "react";
                 <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
                 <input
                   type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-[#6D7B74] focus:outline-none focus:ring-2 focus:ring-[#C1CDC7]"
                   placeholder="Enter your password" required
                 />
               </div>
@@ -63,7 +63,7 @@ import { useState } from "react";
 
               <button
                 type="submit" disabled={loginMutation.isPending}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="w-full rounded-lg bg-[#6D7B74] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#5C6862] disabled:opacity-50 transition-colors"
               >
                 {loginMutation.isPending ? "Signing in..." : "Sign In"}
               </button>

@@ -28,7 +28,7 @@ import PortalLayout from "./PortalLayout";
               <button
                 onClick={() => markAll.mutate()}
                 disabled={markAll.isPending}
-                className="text-sm text-blue-600 hover:underline disabled:opacity-50"
+                className="text-sm text-[#6D7B74] hover:underline disabled:opacity-50"
               >
                 Mark all as read
               </button>
@@ -49,7 +49,7 @@ import PortalLayout from "./PortalLayout";
                 <div
                   key={n.id}
                   className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
-                    n.isRead ? "bg-white border-slate-100 opacity-70" : "bg-blue-50 border-blue-200"
+                    n.isRead ? "bg-white border-slate-100 opacity-70" : "bg-[#F0F4F2] border-[#CDD8D2]"
                   }`}
                   onClick={() => { if (!n.isRead) markRead.mutate({ id: n.id }); }}
                 >
@@ -58,7 +58,7 @@ import PortalLayout from "./PortalLayout";
                     <p className={`text-sm ${n.isRead ? "text-slate-600" : "text-slate-900 font-medium"}`}>{n.message}</p>
                     <p className="text-xs text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                   </div>
-                  {!n.isRead && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />}
+                  {!n.isRead && <div className="w-2 h-2 bg-[#6D7B74] rounded-full mt-1.5 flex-shrink-0" />}
                 </div>
               ))}
             </div>

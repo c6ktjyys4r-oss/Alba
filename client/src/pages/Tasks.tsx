@@ -67,8 +67,8 @@ export default function Tasks() {
     urgent: tasks.filter((t: any)=>t.priority==="urgent").length,
   };
 
-  const priorityColors: Record<string,string> = { low:"bg-slate-100 text-slate-600", medium:"bg-blue-50 text-blue-700", high:"bg-orange-50 text-orange-700", urgent:"bg-red-50 text-red-700" };
-  const statusIcons: Record<string,any> = { pending:<Clock size={13} className="text-slate-500"/>, in_progress:<AlertCircle size={13} className="text-blue-500"/>, completed:<CheckCircle2 size={13} className="text-green-500"/>, cancelled:<Trash2 size={13} className="text-red-400"/> };
+  const priorityColors: Record<string,string> = { low:"bg-slate-100 text-slate-600", medium:"bg-[#F0F4F2] text-[#4A574F]", high:"bg-orange-50 text-orange-700", urgent:"bg-red-50 text-red-700" };
+  const statusIcons: Record<string,any> = { pending:<Clock size={13} className="text-slate-500"/>, in_progress:<AlertCircle size={13} className="text-[#6D7B74]"/>, completed:<CheckCircle2 size={13} className="text-green-500"/>, cancelled:<Trash2 size={13} className="text-red-400"/> };
 
   return (
     <div className="p-4 lg:p-6">
@@ -76,7 +76,7 @@ export default function Tasks() {
         actions={<Button onClick={openCreate} size="sm" className="gap-2"><Plus size={16}/>{t("tasks.add")}</Button>} />
 
       <div className="grid grid-cols-4 gap-3 mb-5">
-        {[{label:t("tasks.pending"),value:stats.pending,color:"text-slate-600"},{label:t("tasks.inProgress"),value:stats.inProgress,color:"text-blue-600"},{label:t("tasks.completed"),value:stats.completed,color:"text-green-600"},{label:t("tasks.urgent"),value:stats.urgent,color:"text-red-600"}].map(s=>(
+        {[{label:t("tasks.pending"),value:stats.pending,color:"text-slate-600"},{label:t("tasks.inProgress"),value:stats.inProgress,color:"text-[#6D7B74]"},{label:t("tasks.completed"),value:stats.completed,color:"text-green-600"},{label:t("tasks.urgent"),value:stats.urgent,color:"text-red-600"}].map(s=>(
           <Card key={s.label} className="border-0 shadow-sm">
             <CardContent className="p-3 text-center">
               <p className={cn("text-2xl font-bold",s.color)}>{s.value}</p>

@@ -82,7 +82,7 @@ import PortalLayout from "./PortalLayout";
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Annual Leave Left" value={annualRemaining + " days"} color="text-blue-600" icon="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <StatCard label="Annual Leave Left" value={annualRemaining + " days"} color="text-[#6D7B74]" icon="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             <StatCard label="Pending Requests" value={pending} color="text-amber-600" icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             <StatCard label="Approved" value={approved} color="text-green-600" icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             <StatCard label="Unread Notifications" value={unread} color="text-purple-600" icon="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -92,9 +92,9 @@ import PortalLayout from "./PortalLayout";
           <div className="rounded-xl border bg-white p-5 mb-6 shadow-sm">
             <h2 className="font-semibold text-slate-900 mb-4">Leave Balance — {new Date().getFullYear()}</h2>
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-blue-50 rounded-xl">
-                <p className="text-3xl font-bold text-blue-700">{annualRemaining}</p>
-                <p className="text-sm text-blue-600 mt-1">Days Remaining</p>
+              <div className="text-center p-4 bg-[#F0F4F2] rounded-xl">
+                <p className="text-3xl font-bold text-[#4A574F]">{annualRemaining}</p>
+                <p className="text-sm text-[#6D7B74] mt-1">Days Remaining</p>
               </div>
               <div className="text-center p-4 bg-slate-50 rounded-xl">
                 <p className="text-3xl font-bold text-slate-700">{balance?.annualDaysUsed ?? 0}</p>
@@ -108,7 +108,7 @@ import PortalLayout from "./PortalLayout";
             <div className="mt-3">
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 rounded-full transition-all"
+                  className="h-full bg-[#6D7B74] rounded-full transition-all"
                   style={{ width: `${Math.min(100, ((balance?.annualDaysUsed ?? 0) / (balance?.annualDaysTotal ?? 21)) * 100)}%` }}
                 />
               </div>
@@ -120,12 +120,12 @@ import PortalLayout from "./PortalLayout";
           <div className="rounded-xl border bg-white shadow-sm">
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <h2 className="font-semibold text-slate-900">Recent Requests</h2>
-              <Link href="/emp/requests" className="text-sm text-blue-600 hover:underline">View all →</Link>
+              <Link href="/emp/requests" className="text-sm text-[#6D7B74] hover:underline">View all →</Link>
             </div>
             {recent.length === 0 ? (
               <div className="p-8 text-center text-slate-400">
                 <p>No requests yet.</p>
-                <Link href="/emp/requests/new" className="mt-2 inline-block text-sm text-blue-600 hover:underline">Submit your first request →</Link>
+                <Link href="/emp/requests/new" className="mt-2 inline-block text-sm text-[#6D7B74] hover:underline">Submit your first request →</Link>
               </div>
             ) : (
               <div className="divide-y divide-slate-50">

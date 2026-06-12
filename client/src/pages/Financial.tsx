@@ -40,7 +40,7 @@ export default function Financial() {
   const revCatData = Object.entries(revByCategory).map(([name, value]) => ({ name, value }));
   const expCatData = Object.entries(expByCategory).map(([name, value]) => ({ name, value }));
 
-  const COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316"];
+  const COLORS = ["#6D7B74","#C1CDC7","#E5B6A6","#7C6E6C","#97A8A0","#B5705E","#B08A4A"];
 
   return (
     <div className="p-4 lg:p-6 space-y-5">
@@ -67,8 +67,8 @@ export default function Financial() {
         {[
           { label:t("accounting.totalRevenue"), value:totalRevenue, color:"text-green-600", bg:"bg-green-50", icon:<TrendingUp size={18} className="text-green-600"/> },
           { label:t("accounting.totalExpenses"), value:totalExpenses, color:"text-red-600", bg:"bg-red-50", icon:<TrendingDown size={18} className="text-red-600"/> },
-          { label:t("accounting.netProfit"), value:netProfit, color:netProfit>=0?"text-blue-600":"text-red-600", bg:"bg-blue-50", icon:<DollarSign size={18} className="text-blue-600"/> },
-          { label:t("accounting.profitMargin"), value:`${profitMargin}%`, color:"text-violet-600", bg:"bg-violet-50", icon:<BarChart3 size={18} className="text-violet-600"/> },
+          { label:t("accounting.netProfit"), value:netProfit, color:netProfit>=0?"text-[#6D7B74]":"text-red-600", bg:"bg-[#F0F4F2]", icon:<DollarSign size={18} className="text-[#6D7B74]"/> },
+          { label:t("accounting.profitMargin"), value:`${profitMargin}%`, color:"text-[#7C6E6C]", bg:"bg-[#F2ECEA]", icon:<BarChart3 size={18} className="text-[#7C6E6C]"/> },
         ].map(card=>(
           <Card key={card.label} className="border-0 shadow-sm">
             <CardContent className="p-4 flex items-center gap-3">
@@ -93,8 +93,8 @@ export default function Financial() {
               <YAxis tick={{fontSize:11,fill:"#94a3b8"}} axisLine={false} tickLine={false}/>
               <Tooltip contentStyle={{borderRadius:"8px",border:"none",boxShadow:"0 4px 20px rgba(0,0,0,0.1)"}}/>
               <Legend wrapperStyle={{fontSize:"12px"}}/>
-              <Bar dataKey="revenue" fill="#10b981" radius={[4,4,0,0]} name="Revenue"/>
-              <Bar dataKey="expenses" fill="#f87171" radius={[4,4,0,0]} name="Expenses"/>
+              <Bar dataKey="revenue" fill="#6D7B74" radius={[4,4,0,0]} name="Revenue"/>
+              <Bar dataKey="expenses" fill="#E5B6A6" radius={[4,4,0,0]} name="Expenses"/>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -110,7 +110,7 @@ export default function Financial() {
               <XAxis dataKey="month" tick={{fontSize:11,fill:"#94a3b8"}} axisLine={false} tickLine={false}/>
               <YAxis tick={{fontSize:11,fill:"#94a3b8"}} axisLine={false} tickLine={false}/>
               <Tooltip contentStyle={{borderRadius:"8px",border:"none",boxShadow:"0 4px 20px rgba(0,0,0,0.1)"}}/>
-              <Line type="monotone" dataKey="profit" stroke="#3b82f6" strokeWidth={2} dot={{r:4}} name="Net Profit"/>
+              <Line type="monotone" dataKey="profit" stroke="#7C6E6C" strokeWidth={2} dot={{r:4}} name="Net Profit"/>
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

@@ -72,7 +72,7 @@ import { useParams, useLocation } from "wouter";
 
     const GROUP_ICON: Record<GroupName, React.ReactNode> = {
       "Branch Manager":       <Crown size={15} className="text-amber-500" />,
-      "Doctors":              <Stethoscope size={15} className="text-blue-500" />,
+      "Doctors":              <Stethoscope size={15} className="text-[#6D7B74]" />,
       "Nursing Staff":        <HeartPulse size={15} className="text-rose-500" />,
       "Administrative Staff": <Briefcase size={15} className="text-slate-500" />,
     };
@@ -202,10 +202,10 @@ import { useParams, useLocation } from "wouter";
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { icon: <User2 size={16} className="text-blue-600" />,   bg: "bg-blue-50",   label: "Manager",        value: (branch as any).managerName || "—" },
+              { icon: <User2 size={16} className="text-[#6D7B74]" />,   bg: "bg-[#F0F4F2]",   label: "Manager",        value: (branch as any).managerName || "—" },
               { icon: <MapPin size={16} className="text-green-600" />, bg: "bg-green-50",  label: "City / Address", value: (branch as any).address     || "—" },
               { icon: <Phone size={16} className="text-amber-600" />,  bg: "bg-amber-50",  label: "Phone",          value: (branch as any).phone       || "—" },
-              { icon: <Users size={16} className="text-violet-600" />, bg: "bg-violet-50", label: "Employees",      value: empList.length },
+              { icon: <Users size={16} className="text-[#7C6E6C]" />, bg: "bg-[#F2ECEA]", label: "Employees",      value: empList.length },
             ].map((item) => (
               <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${item.bg}`}>
@@ -297,7 +297,7 @@ import { useParams, useLocation } from "wouter";
                               <span className="text-slate-400 italic">Not assigned</span>
                             )}
                             <select
-                              className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-100"
+                              className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:border-[#8B9A92] focus:outline-none focus:ring-1 focus:ring-[#E7ECE9]"
                               value={directMgrId ?? ""}
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -339,13 +339,13 @@ import { useParams, useLocation } from "wouter";
                               "rounded-xl border p-4 cursor-pointer hover:shadow-md transition-all group",
                               isMgr
                                 ? "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 hover:border-amber-300"
-                                : "bg-white border-slate-200 hover:border-blue-200"
+                                : "bg-white border-slate-200 hover:border-[#CDD8D2]"
                             )}
                           >
                             <div className="flex items-start gap-3">
                               <div className={cn(
                                 "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
-                                isMgr ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                                isMgr ? "bg-amber-100 text-amber-700" : "bg-[#E7ECE9] text-[#4A574F]"
                               )}>
                                 {(emp.firstName || "")[0]}
                                 {(emp.lastName  || "")[0]}
@@ -354,7 +354,7 @@ import { useParams, useLocation } from "wouter";
                               <div className="min-w-0 flex-1">
                                 <p
                                   title={`${emp.firstName} ${emp.lastName}`}
-                                  className="font-semibold text-slate-900 truncate group-hover:text-blue-700 transition-colors"
+                                  className="font-semibold text-slate-900 truncate group-hover:text-[#5C6862] transition-colors"
                                 >
                                   {shortName(emp.firstName, emp.lastName)}
                                 </p>

@@ -35,6 +35,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AlbaLogo, { AlbaMark } from "@/components/AlbaLogo";
 
 interface NavItem {
   key: string;
@@ -132,12 +133,12 @@ function NavItemComponent({
         className={cn(
           "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
           isActive
-            ? "bg-blue-600 text-white shadow-sm"
+            ? "bg-primary text-primary-foreground shadow-sm"
             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
           collapsed && "justify-center px-2"
         )}
       >
-        <span className={cn("flex-shrink-0", isActive ? "text-white" : "text-slate-500")}>
+        <span className={cn("flex-shrink-0", isActive ? "text-primary-foreground" : "text-slate-500")}>
           {item.icon}
         </span>
         {!collapsed && <span>{t(item.key)}</span>}
@@ -157,7 +158,7 @@ export default function ERPLayout({ children }: { children: React.ReactNode }) {
     : "U";
 
   return (
-    <div className={cn("flex h-screen bg-slate-50 overflow-hidden", isRTL && "font-arabic")} dir={isRTL ? "rtl" : "ltr"}>
+    <div className={cn("flex h-screen bg-background overflow-hidden", isRTL && "font-arabic")} dir={isRTL ? "rtl" : "ltr"}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -176,15 +177,11 @@ export default function ERPLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         {/* Logo */}
-        <div className={cn("flex items-center gap-3 px-4 py-4 border-b border-slate-200", collapsed && "justify-center px-2")}>
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Building2 size={16} className="text-white" />
-          </div>
-          {!collapsed && (
-            <div>
-              <p className="text-sm font-bold text-slate-900 leading-tight">ERP System</p>
-              <p className="text-xs text-slate-500">Management Platform</p>
-            </div>
+        <div className={cn("flex items-center px-4 py-4 border-b border-slate-200", collapsed ? "justify-center px-2" : "gap-3")}>
+          {collapsed ? (
+            <AlbaMark className="h-8 w-auto text-primary" />
+          ) : (
+            <AlbaLogo />
           )}
         </div>
 
@@ -243,7 +240,7 @@ export default function ERPLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors">
                   <Avatar className="w-7 h-7">
-                    <AvatarFallback className="text-xs bg-blue-100 text-blue-700">{initials}</AvatarFallback>
+                    <AvatarFallback className="text-xs bg-[#E7ECE9] text-[#4A574F]">{initials}</AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium text-slate-700 hidden sm:block">{user?.name || "User"}</span>
                   <ChevronDown size={14} className="text-slate-400" />

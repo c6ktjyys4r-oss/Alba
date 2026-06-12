@@ -46,7 +46,7 @@ import { useState } from "react";
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6D7B74]"
                   placeholder="At least 8 characters"
                   required
                 />
@@ -57,7 +57,7 @@ import { useState } from "react";
                   type="password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#6D7B74]"
                   placeholder="Repeat new password"
                   required
                 />
@@ -65,7 +65,7 @@ import { useState } from "react";
               <button
                 type="submit"
                 disabled={mutation.isPending}
-                className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg text-sm transition-colors"
+                className="py-2.5 px-5 bg-[#6D7B74] hover:bg-[#5C6862] disabled:opacity-50 text-white font-medium rounded-lg text-sm transition-colors"
               >
                 {mutation.isPending ? "Saving..." : "Update Password"}
               </button>

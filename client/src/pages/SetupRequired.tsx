@@ -42,7 +42,7 @@ export default function SetupRequired() {
           ))}
         </ul>
 
-        <div className="mt-6 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <div className="mt-6 rounded-lg bg-[#F0F4F2] px-4 py-3 text-sm text-[#3F4844]">
           <p className="font-medium">Required variables</p>
           <ul className="mt-2 space-y-1 font-mono text-xs">
             <li>DATABASE_URL=mysql://user:password@host:3306/alba</li>
@@ -54,7 +54,7 @@ export default function SetupRequired() {
           href="https://dashboard.render.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+          className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#6D7B74] hover:text-[#5C6862]"
         >
           Open Render dashboard
           <ExternalLink className="h-4 w-4" />
