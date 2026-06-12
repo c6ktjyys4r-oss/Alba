@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Plus, Edit, Trash2, Building2, Users, MapPin } from "lucide-react";
 
 const defaultBranchForm = { name:"", nameAr:"", address:"", phone:"", email:"", managerName:"", latitude:"", longitude:"", geofenceRadiusMeters:"100", workStartTime:"", workEndTime:"", timezone:"Asia/Riyadh", lateGraceMinutes:"5" };
-const defaultDeptForm = { name:"", nameAr:"", branchId:"" };
+const defaultDeptForm = { name:"", nameAr:"", branchId:"", directManagerId:"" };
 
 export default function Branches() {
   const { t } = useLanguage();
@@ -40,7 +40,7 @@ export default function Branches() {
   const deleteDept = trpc.department.delete.useMutation({ onSuccess:()=>{ utils.department.list.invalidate(); toast.success("Department deleted"); }, onError:(e)=>toast.error(e.message) });
 
   const openEditBranch = (b: any) => { setEditBranchId(b.id); setBranchForm({ name:b.name||"", nameAr:b.nameAr||"", address:b.address||"", phone:b.phone||"", email:b.email||"", managerName:b.managerName||"", latitude:b.latitude!=null?String(b.latitude):"", longitude:b.longitude!=null?String(b.longitude):"", geofenceRadiusMeters:b.geofenceRadiusMeters!=null?String(b.geofenceRadiusMeters):"100", workStartTime:b.workStartTime||"", workEndTime:b.workEndTime||"", timezone:b.timezone||"Asia/Riyadh", lateGraceMinutes:b.lateGraceMinutes!=null?String(b.lateGraceMinutes):"5" }); setBranchDialog(true); };
-  const openEditDept = (d: any) => { setEditDeptId(d.id); setDeptForm({ name:d.name||"", nameAr:d.nameAr||"", branchId:d.branchId?String(d.branchId):"" }); setDeptDialog(true); };
+  const openEditDept = (d: any) => { setEditDeptId(d.id); setDeptForm({ name:d.name||"", nameAr:d.nameAr||"", branchId:d.branchId?String(d.branchId):"", directManagerId:d.directManagerId?String(d.directManagerId):"" }); setDeptDialog(true); };
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) { toast.error("Geolocation is not supported on this device"); return; }
@@ -235,10 +235,21 @@ export default function Branches() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Direct Manager</Label>
+              <Select value={deptForm.directManagerId} onValueChange={v=>setDeptForm({...deptForm,directManagerId:v})}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select manager"/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("common.none")}</SelectItem>
+                  {employees.map((e: any)=><SelectItem key={e.id} value={String(e.id)}>{e.firstName} {e.lastName}{e.jobTitle?` · ${e.jobTitle}`:""}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-slate-400">Employees in this department see this person as their Direct Manager and requests route to them.</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={()=>setDeptDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={()=>{ const payload: any = {...deptForm, branchId:deptForm.branchId?Number(deptForm.branchId):undefined}; if(editDeptId) updateDept.mutate({id:editDeptId,...payload}); else createDept.mutate(payload); }} disabled={createDept.isPending||updateDept.isPending}>{t("common.save")}</Button>
+            <Button onClick={()=>{ const payload: any = { name:deptForm.name, nameAr:deptForm.nameAr, branchId: deptForm.branchId && deptForm.branchId!=="none" ? Number(deptForm.branchId) : undefined, directManagerId: deptForm.directManagerId && deptForm.directManagerId!=="none" ? Number(deptForm.directManagerId) : null }; if(editDeptId) updateDept.mutate({id:editDeptId,...payload}); else createDept.mutate(payload); }} disabled={createDept.isPending||updateDept.isPending}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
