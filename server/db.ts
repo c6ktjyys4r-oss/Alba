@@ -23,6 +23,7 @@ import {
     employeeRequests,
     empNotifications,
   } from "../drizzle/schema";
+import type { Employee, Department } from "../drizzle/schema";
 import { eq, and, or, like, desc, asc, sql } from "drizzle-orm";
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 
@@ -160,6 +161,82 @@ export async function getEmployeeById(id: number) {
   if (!db) return null;
   const results = await db.select().from(employees).where(eq(employees.id, id));
   return results[0] || null;
+}
+
+// ─── Direct Manager Resolution ────────────────────────────────────────────────
+// Single source of truth for "who is this employee's direct manager?".
+// Used for both display (employee.me) and routing (submitRequest) so the manager
+// an employee sees is always the manager their requests are actually routed to.
+
+function isDentistEmployee(emp: Pick<Employee, "jobTitle" | "jobTitleAr">) {
+  return /dentist/i.test(emp.jobTitle ?? "") || /أسنان|اسنان/.test(emp.jobTitleAr ?? "");
+}
+
+function isBranchManagerEmployee(emp: Pick<Employee, "erpRole" | "jobTitle" | "jobTitleAr">) {
+  return (
+    emp.erpRole === "branch_manager" ||
+    /branch\s*manager/i.test(emp.jobTitle ?? "") ||
+    /مدير\s*الفرع|مدير\s*فرع/.test(emp.jobTitleAr ?? "")
+  );
+}
+
+// Pure resolver so it can be unit-tested without a database connection.
+export function resolveDirectManagerIdSync(
+  emp: Employee,
+  all: Employee[],
+  depts: Department[],
+): number | null {
+  const topManager = all.find((e) => e.erpRole === "super_admin") ?? null;
+
+  const isTop = topManager ? emp.id === topManager.id : emp.erpRole === "super_admin";
+  if (isTop) return null;
+
+  let managerId: number | null = null;
+
+  // Dentists report to their branch manager (overrides the department manager).
+  if (isDentistEmployee(emp) && emp.branchId != null) {
+    const branchManager = all.find(
+      (e) => e.branchId === emp.branchId && e.id !== emp.id && isBranchManagerEmployee(e),
+    );
+    if (branchManager) managerId = branchManager.id;
+  }
+
+  // Otherwise fall back to the employee's department direct manager.
+  if (managerId == null) {
+    const dept = depts.find((d) => d.id === emp.departmentId) ?? null;
+    if (dept?.directManagerId) managerId = dept.directManagerId;
+  }
+
+  // Ignore a self-referential mapping.
+  if (managerId === emp.id) managerId = null;
+
+  // Branch managers always roll up to the top manager; so does anyone still unresolved.
+  if (topManager) {
+    if (isBranchManagerEmployee(emp) || managerId == null) {
+      managerId = topManager.id;
+    }
+  }
+
+  if (managerId === emp.id) managerId = null;
+  return managerId;
+}
+
+export async function resolveDirectManagerId(employeeId: number): Promise<number | null> {
+  const emp = await getEmployeeById(employeeId);
+  if (!emp) return null;
+  const [all, depts] = await Promise.all([getEmployees(), getDepartments()]);
+  return resolveDirectManagerIdSync(emp, all, depts);
+}
+
+// An employee is a "manager" if any active employee resolves to them as direct manager.
+export async function isManagerEmployee(employeeId: number): Promise<boolean> {
+  const [all, depts] = await Promise.all([getEmployees(), getDepartments()]);
+  return all.some(
+    (e) =>
+      e.status === "active" &&
+      e.id !== employeeId &&
+      resolveDirectManagerIdSync(e, all, depts) === employeeId,
+  );
 }
 
 export async function createEmployee(data: any) {
