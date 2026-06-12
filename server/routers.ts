@@ -695,6 +695,31 @@ const importRouter = router({
               : { firstName: branchManagerName.slice(0, sp), lastName: branchManagerName.slice(sp + 1) };
         }
       }
+      // Treat a self-referential department manager as "no manager assigned".
+      if (directManagerEmp && directManagerEmp.id != null && directManagerEmp.id === emp.id) {
+        directManagerEmp = null;
+      }
+      // Business rule: the org hierarchy rolls up to the top manager (Bader, the super_admin).
+      //   1) Branch Managers always report to the top manager.
+      //   2) Executive/management staff with no assigned manager report to the top manager.
+      //   3) Any employee with no assigned manager defaults to the top manager.
+      const allEmployees = await db.getEmployees();
+      const topManager =
+        allEmployees?.find((e: any) => e.erpRole === "super_admin") ?? null;
+      const isTopManager = topManager
+        ? emp.id === topManager.id
+        : emp.erpRole === "super_admin";
+      if (isTopManager) {
+        directManagerEmp = null;
+      } else if (topManager) {
+        const isBranchManager =
+          emp.erpRole === "branch_manager" ||
+          /branch\s*manager/i.test(emp.jobTitle ?? "") ||
+          /مدير\s*الفرع|مدير\s*فرع/.test(emp.jobTitleAr ?? "");
+        if (isBranchManager || !directManagerEmp) {
+          directManagerEmp = topManager;
+        }
+      }
       return { ...emp, department: dept, directManager: directManagerEmp, isManager };
     }),
 
