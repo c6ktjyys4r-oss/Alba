@@ -49,14 +49,20 @@ describe("auth.logout", () => {
     const result = await caller.auth.logout();
 
     expect(result).toEqual({ success: true });
-    expect(clearedCookies).toHaveLength(1);
-    expect(clearedCookies[0]?.name).toBe(COOKIE_NAME);
-    expect(clearedCookies[0]?.options).toMatchObject({
-      maxAge: -1,
-      secure: true,
-      sameSite: "none",
-      httpOnly: true,
-      path: "/",
-    });
+    // The unified logout clears both the legacy admin cookie and the canonical
+    // employee-session cookie so a single sign-out ends every session.
+    expect(clearedCookies).toHaveLength(2);
+    const names = clearedCookies.map((c) => c.name);
+    expect(names).toContain(COOKIE_NAME);
+    expect(names).toContain("emp_session");
+    for (const cookie of clearedCookies) {
+      expect(cookie.options).toMatchObject({
+        maxAge: -1,
+        secure: true,
+        sameSite: "none",
+        httpOnly: true,
+        path: "/",
+      });
+    }
   });
 });

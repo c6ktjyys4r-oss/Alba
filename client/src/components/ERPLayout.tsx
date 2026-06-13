@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -33,18 +34,25 @@ import {
   LogOut,
   User,
   ChevronLeft,
+  Bell,
+  PlusCircle,
+  KeyRound,
+  ClipboardList,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AlbaLogo, { AlbaMark } from "@/components/AlbaLogo";
 
 interface NavItem {
-  key: string;
+  key?: string;
+  label?: string;
   icon: React.ReactNode;
   path?: string;
   children?: NavItem[];
+  badge?: number;
 }
 
-const navItems: NavItem[] = [
+const adminNavItems: NavItem[] = [
   { key: "nav.dashboard", icon: <LayoutDashboard size={18} />, path: "/" },
   {
     key: "nav.hr",
@@ -93,6 +101,7 @@ function NavItemComponent({
 
   const isActive = item.path === location;
   const ChevronIcon = isRTL ? ChevronLeft : ChevronRight;
+  const label = item.label ?? (item.key ? t(item.key) : "");
 
   if (item.children) {
     return (
@@ -109,7 +118,7 @@ function NavItemComponent({
           <span className="flex-shrink-0 text-slate-500">{item.icon}</span>
           {!collapsed && (
             <>
-              <span className="flex-1 text-start">{t(item.key)}</span>
+              <span className="flex-1 text-start">{label}</span>
               <span className={cn("transition-transform", open && "rotate-90")}>
                 <ChevronIcon size={14} />
               </span>
@@ -119,7 +128,7 @@ function NavItemComponent({
         {open && !collapsed && (
           <div className={cn("mt-1 space-y-0.5", isRTL ? "pr-4" : "pl-4")}>
             {item.children.map((child) => (
-              <NavItemComponent key={child.key} item={child} depth={depth + 1} collapsed={collapsed} />
+              <NavItemComponent key={child.path ?? child.key ?? child.label} item={child} depth={depth + 1} collapsed={collapsed} />
             ))}
           </div>
         )}
@@ -141,7 +150,12 @@ function NavItemComponent({
         <span className={cn("flex-shrink-0", isActive ? "text-primary-foreground" : "text-slate-500")}>
           {item.icon}
         </span>
-        {!collapsed && <span>{t(item.key)}</span>}
+        {!collapsed && <span className="flex-1">{label}</span>}
+        {!collapsed && item.badge != null && item.badge > 0 && (
+          <span className="bg-red-500 text-white text-[10px] rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center">
+            {item.badge}
+          </span>
+        )}
       </a>
     </Link>
   );
@@ -153,9 +167,44 @@ export default function ERPLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  const hasEmployee = Boolean(user?.employeeId);
+  const isSuperAdmin = user?.role === "super_admin";
+
+  // Notification badge — only meaningful for users backed by an employee record.
+  const { data: notifications } = trpc.empPortal.myNotifications.useQuery(undefined, {
+    retry: false,
+    refetchInterval: 30000,
+    enabled: hasEmployee,
+  });
+  const unread = notifications?.filter((n) => !n.isRead).length ?? 0;
+
+  const personalNavItems: NavItem[] = hasEmployee
+    ? [
+        { label: "My Dashboard", icon: <LayoutDashboard size={18} />, path: "/emp" },
+        { label: "Attendance", icon: <Clock size={18} />, path: "/emp/attendance" },
+        { label: "My Requests", icon: <ClipboardList size={18} />, path: "/emp/requests" },
+        { label: "New Request", icon: <PlusCircle size={18} />, path: "/emp/requests/new" },
+        { label: "Notifications", icon: <Bell size={18} />, path: "/emp/notifications", badge: unread },
+        ...(user?.isManager
+          ? [{ label: "Approvals", icon: <ClipboardCheck size={18} />, path: "/emp/manager" }]
+          : []),
+        { label: "Change Password", icon: <KeyRound size={18} />, path: "/emp/change-password" },
+      ]
+    : [];
+
+  const navGroups: { title: string; items: NavItem[] }[] = [
+    ...(personalNavItems.length ? [{ title: "Personal", items: personalNavItems }] : []),
+    ...(isSuperAdmin ? [{ title: "Administration", items: adminNavItems }] : []),
+  ];
+
   const initials = user?.name
     ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : "U";
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = "/login";
+  };
 
   return (
     <div className={cn("flex h-screen bg-background overflow-hidden", isRTL && "font-arabic")} dir={isRTL ? "rtl" : "ltr"}>
@@ -186,9 +235,22 @@ export default function ERPLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {navItems.map((item) => (
-            <NavItemComponent key={item.key} item={item} collapsed={collapsed} />
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+          {navGroups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              {!collapsed && (
+                <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  {group.title}
+                </p>
+              )}
+              {group.items.map((item) => (
+                <NavItemComponent
+                  key={item.path ?? item.key ?? item.label}
+                  item={item}
+                  collapsed={collapsed}
+                />
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -252,7 +314,7 @@ export default function ERPLayout({ children }: { children: React.ReactNode }) {
                   {t("auth.profile")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 text-red-600" onClick={logout}>
+                <DropdownMenuItem className="gap-2 text-red-600" onClick={handleLogout}>
                   <LogOut size={14} />
                   {t("auth.logout")}
                 </DropdownMenuItem>

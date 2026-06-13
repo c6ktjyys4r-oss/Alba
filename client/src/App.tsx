@@ -2,13 +2,12 @@ import { Toaster } from "@/components/ui/sonner";
   import { TooltipProvider } from "@/components/ui/tooltip";
   import NotFound from "@/pages/NotFound";
   import LoginPage from "@/pages/Login";
-  import { Route, Switch, useLocation } from "wouter";
+  import { Route, Switch, Redirect } from "wouter";
   import ErrorBoundary from "./components/ErrorBoundary";
   import { ThemeProvider } from "./contexts/ThemeContext";
   import { LanguageProvider } from "./contexts/LanguageContext";
   import ERPLayout from "./components/ERPLayout";
   import { useAuth } from "./_core/hooks/useAuth";
-  import { trpc } from "@/lib/trpc";
 
   // ERP Pages
   import Dashboard from "./pages/Dashboard";
@@ -28,8 +27,7 @@ import { Toaster } from "@/components/ui/sonner";
   import BranchDetails from "./pages/BranchDetails";
   import EmployeeProfile from "./pages/EmployeeProfile";
 
-  // Employee Self-Service Portal
-  import PortalLogin from "./pages/emp/PortalLogin";
+  // Employee Self-Service pages (rendered inside the unified shell)
   import PortalDashboard from "./pages/emp/PortalDashboard";
   import PortalRequests from "./pages/emp/PortalRequests";
   import PortalNewRequest from "./pages/emp/PortalNewRequest";
@@ -38,19 +36,23 @@ import { Toaster } from "@/components/ui/sonner";
   import ManagerPortal from "./pages/emp/ManagerPortal";
   import ChangePassword from "./pages/emp/ChangePassword";
 
-  function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-    const { isAuthenticated, loading } = useAuth();
-    if (loading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <div className="text-center">
-            <div className="w-10 h-10 border-4 border-[#6D7B74] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">Loading...</p>
-          </div>
+  function AuthLoading() {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-[#6D7B74] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-slate-500 text-sm">Loading...</p>
         </div>
-      );
-    }
-    if (!isAuthenticated) return <LoginPage />;
+      </div>
+    );
+  }
+
+  // Admin (super-admin-only) area of the unified app.
+  function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+    const { user, loading } = useAuth();
+    if (loading) return <AuthLoading />;
+    if (!user) return <LoginPage />;
+    if (user.role !== "super_admin") return <Redirect to="/emp" />;
     return (
       <ERPLayout>
         <Component />
@@ -58,26 +60,14 @@ import { Toaster } from "@/components/ui/sonner";
     );
   }
 
-  function EmpPortalRoute({ component: Component }: { component: React.ComponentType }) {
-    const [, navigate] = useLocation();
-    const { data: me, isLoading } = trpc.empPortal.me.useQuery(undefined, {
-      retry: false,
-      refetchOnWindowFocus: false,
-    });
-
-    if (isLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <div className="w-10 h-10 border-4 border-[#6D7B74] border-t-transparent rounded-full animate-spin" />
-        </div>
-      );
-    }
-
-    if (!me) {
-      navigate("/emp/login");
-      return null;
-    }
-
+  // Personal pages — available to any authenticated employee (the pages render
+  // inside the unified shell via PortalLayout). Break-glass admin sessions have
+  // no employee record, so they are sent to the admin home instead.
+  function PortalRoute({ component: Component }: { component: React.ComponentType }) {
+    const { user, loading } = useAuth();
+    if (loading) return <AuthLoading />;
+    if (!user) return <LoginPage />;
+    if (!user.employeeId) return <Redirect to="/" />;
     return <Component />;
   }
 
@@ -102,15 +92,18 @@ import { Toaster } from "@/components/ui/sonner";
         <Route path="/branches/:id" component={() => <ProtectedRoute component={BranchDetails} />} />
         <Route path="/employees/:id" component={() => <ProtectedRoute component={EmployeeProfile} />} />
 
-        {/* Employee Self-Service Portal */}
-        <Route path="/emp/login" component={PortalLogin} />
-        <Route path="/emp/change-password" component={() => <EmpPortalRoute component={ChangePassword} />} />
-        <Route path="/emp/requests/new" component={() => <EmpPortalRoute component={PortalNewRequest} />} />
-        <Route path="/emp/requests" component={() => <EmpPortalRoute component={PortalRequests} />} />
-        <Route path="/emp/notifications" component={() => <EmpPortalRoute component={PortalNotifications} />} />
-        <Route path="/emp/attendance" component={() => <EmpPortalRoute component={PortalAttendance} />} />
-        <Route path="/emp/manager" component={() => <EmpPortalRoute component={ManagerPortal} />} />
-        <Route path="/emp" component={() => <EmpPortalRoute component={PortalDashboard} />} />
+        {/* Unified login */}
+        <Route path="/login" component={LoginPage} />
+        <Route path="/emp/login">{() => <Redirect to="/login" />}</Route>
+
+        {/* Personal pages (rendered inside the unified shell) */}
+        <Route path="/emp/change-password" component={() => <PortalRoute component={ChangePassword} />} />
+        <Route path="/emp/requests/new" component={() => <PortalRoute component={PortalNewRequest} />} />
+        <Route path="/emp/requests" component={() => <PortalRoute component={PortalRequests} />} />
+        <Route path="/emp/notifications" component={() => <PortalRoute component={PortalNotifications} />} />
+        <Route path="/emp/attendance" component={() => <PortalRoute component={PortalAttendance} />} />
+        <Route path="/emp/manager" component={() => <PortalRoute component={ManagerPortal} />} />
+        <Route path="/emp" component={() => <PortalRoute component={PortalDashboard} />} />
 
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
