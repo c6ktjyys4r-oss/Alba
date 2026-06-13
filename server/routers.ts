@@ -2,13 +2,13 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { localAuth } from "./_core/localAuth";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router, empProtectedProcedure } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router, empProtectedProcedure, empManagerProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
   import { SignJWT } from "jose";
   import { ENV } from "./_core/env";
-import { storagePut } from "./storage";
+import { persistUpload } from "./storage";
 import { nanoid } from "nanoid";
 
 // ─── Branch Router ────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ const employeeRouter = router({
   })).mutation(async ({ input }) => {
     const buffer = Buffer.from(input.fileBase64, "base64");
     const key = `employee-docs/${input.employeeId}/${nanoid()}-${input.fileName}`;
-    const { url } = await storagePut(key, buffer, input.mimeType);
+    const { url } = await persistUpload(key, buffer, input.mimeType, input.fileName);
     return db.addEmployeeDocument({ employeeId: input.employeeId, name: input.name, fileUrl: url, fileKey: key, mimeType: input.mimeType });
   }),
   deleteDocument: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ input }) => db.deleteEmployeeDocument(input.id)),
@@ -680,8 +680,14 @@ const importRouter = router({
       // shown here is exactly the one requests get routed to.
       const directManagerId = await db.resolveDirectManagerId(emp.id);
       const directManagerEmp = directManagerId ? await db.getEmployeeById(directManagerId) : null;
-      const isManager = await db.isManagerEmployee(emp.id);
-      return { ...emp, department: dept, directManager: directManagerEmp, isManager };
+      const access = await db.getManagerAccess(emp.id);
+      return {
+        ...emp,
+        department: dept,
+        directManager: directManagerEmp,
+        isManager: access.isManager,
+        role: access.role,
+      };
     }),
 
     myLeaveBalance: empProtectedProcedure.query(async ({ ctx }) => {
@@ -737,13 +743,8 @@ const importRouter = router({
     })).mutation(async ({ input }) => {
       const key = `sick-leave-docs/${nanoid()}-${input.filename}`;
       const buffer = Buffer.from(input.contentBase64, "base64");
-      try {
-        const result = await storagePut(key, buffer, input.mimeType);
-        return { url: result.url, key: result.key };
-      } catch {
-        // Fallback: return a data URL key for environments without storage
-        return { url: `/api/docs/${key}`, key };
-      }
+      const result = await persistUpload(key, buffer, input.mimeType, input.filename);
+      return { url: result.url, key: result.key };
     }),
 
     myNotifications: empProtectedProcedure.query(({ ctx }) =>
@@ -843,18 +844,49 @@ const importRouter = router({
 
   // ─── Manager Approval Portal ──────────────────────────────────────────────────
   const empManagerRouter = router({
-    teamRequests: empProtectedProcedure.query(({ ctx }) =>
-      db.getManagerRequests(ctx.empEmployeeId)
+    // Role + branch scope of the signed-in manager, so the portal can label and
+    // gate itself consistently with the backend.
+    access: empManagerProcedure.query(({ ctx }) => ({
+      role: ctx.managerRole,
+      branchId: ctx.managerBranchId,
+    })),
+
+    teamRequests: empManagerProcedure.query(({ ctx }) =>
+      db.getManagerRequestsScoped({
+        employeeId: ctx.empEmployeeId,
+        role: ctx.managerRole,
+        branchId: ctx.managerBranchId,
+      })
     ),
 
-    reviewRequest: empProtectedProcedure.input(z.object({
+    // Branch roster the manager is allowed to see (own branch; super_admin: all).
+    branchTeam: empManagerProcedure.query(async ({ ctx }) => {
+      const team = await db.getBranchTeam({ role: ctx.managerRole, branchId: ctx.managerBranchId });
+      return team.map((e: any) => ({
+        id: e.id,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        firstNameAr: e.firstNameAr,
+        lastNameAr: e.lastNameAr,
+        jobTitle: e.jobTitle,
+        jobTitleAr: e.jobTitleAr,
+        branchId: e.branchId,
+        status: e.status,
+      }));
+    }),
+
+    reviewRequest: empManagerProcedure.input(z.object({
       requestId: z.number(),
       status: z.enum(["approved", "rejected"]),
       comment: z.string().optional(),
     })).mutation(async ({ input, ctx }) => {
       const req = await db.getRequestById(input.requestId);
       if (!req) throw new Error("Request not found");
-      if (req.managerId !== ctx.empEmployeeId) throw new Error("Not authorized to review this request");
+      const allowed = await db.canReviewRequest(
+        { employeeId: ctx.empEmployeeId, role: ctx.managerRole, branchId: ctx.managerBranchId },
+        { managerId: req.managerId, employeeId: req.employeeId },
+      );
+      if (!allowed) throw new Error("Not authorized to review this request");
 
       const [updated] = await db.updateEmployeeRequest(input.requestId, {
         status: input.status,

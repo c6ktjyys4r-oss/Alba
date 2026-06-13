@@ -381,4 +381,15 @@ export type TaskComment = typeof taskComments.$inferSelect;
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   });
   export type EmpNotification = typeof empNotifications.$inferSelect;
+
+  // ─── Uploaded Files (DB-backed fallback when object storage is unavailable) ───
+  export const uploadedFiles = pgTable("uploaded_files", {
+    id: serial("id").primaryKey(),
+    fileKey: varchar("fileKey", { length: 500 }).notNull().unique(),
+    filename: varchar("filename", { length: 255 }),
+    mimeType: varchar("mimeType", { length: 100 }),
+    dataBase64: text("dataBase64").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  });
+  export type UploadedFile = typeof uploadedFiles.$inferSelect;
   

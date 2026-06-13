@@ -2,6 +2,35 @@
 // Uses the Biz-provided storage proxy (Authorization: Bearer <token>)
 
 import { ENV } from './_core/env';
+import * as db from './db';
+
+/**
+ * Persist an uploaded file and return a URL that can be opened/downloaded.
+ *
+ * Tries the object-storage proxy first; if it is not configured (e.g. on Render
+ * where BUILT_IN_FORGE_API_* are unset), the bytes are stored in the database
+ * and served via the GET /api/files/<fileKey> route. This guarantees uploaded
+ * attachments are never silently discarded.
+ */
+export async function persistUpload(
+  relKey: string,
+  data: Buffer,
+  contentType = "application/octet-stream",
+  filename?: string,
+): Promise<{ key: string; url: string }> {
+  const key = normalizeKey(relKey);
+  try {
+    return await storagePut(key, data, contentType);
+  } catch {
+    await db.putUploadedFile({
+      fileKey: key,
+      filename: filename ?? key.split("/").pop(),
+      mimeType: contentType,
+      dataBase64: data.toString("base64"),
+    });
+    return { key, url: `/api/files/${key}` };
+  }
+}
 
 type StorageConfig = { baseUrl: string; apiKey: string };
 

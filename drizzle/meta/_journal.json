@@ -43,6 +43,13 @@
       "when": 1781395200000,
       "tag": "0005_branch_geofence_toggle",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781481600000,
+      "tag": "0006_uploaded_files",
+      "breakpoints": true
     }
   ]
 }

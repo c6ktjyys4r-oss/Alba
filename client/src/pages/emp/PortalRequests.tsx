@@ -1,6 +1,7 @@
-import PortalLayout from "./PortalLayout";
+import { useEffect } from "react";
+  import PortalLayout from "./PortalLayout";
   import { trpc } from "@/lib/trpc";
-  import { Link } from "wouter";
+  import { Link, useSearch } from "wouter";
 
   const TYPE_LABELS: Record<string, string> = {
     annual_leave: "Annual Leave",
@@ -16,7 +17,15 @@ import PortalLayout from "./PortalLayout";
   };
 
   export default function PortalRequests() {
+    const search = useSearch();
+    const focusedId = Number(new URLSearchParams(search).get("request")) || null;
     const { data: requests, isLoading } = trpc.empPortal.myRequests.useQuery(undefined, { retry: false });
+
+    useEffect(() => {
+      if (!focusedId || !requests) return;
+      const el = document.getElementById(`req-${focusedId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, [focusedId, requests]);
 
     const grouped = {
       pending:  requests?.filter((r: any) => r.status === "pending")  ?? [],
@@ -27,7 +36,7 @@ import PortalLayout from "./PortalLayout";
     const RequestCard = ({ req }: { req: any }) => {
       const sc = STATUS_CONFIG[req.status] ?? STATUS_CONFIG.pending;
       return (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <div id={`req-${req.id}`} className={`bg-white rounded-xl border shadow-sm p-5 ${focusedId === req.id ? "border-[#6D7B74] ring-2 ring-[#6D7B74]/30" : "border-slate-200"}`}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -38,6 +47,12 @@ import PortalLayout from "./PortalLayout";
               {req.startDate && <p className="text-sm text-slate-500 mt-1">📅 {req.startDate}{req.endDate && req.endDate !== req.startDate ? ` → ${req.endDate}` : ""}{req.daysRequested ? ` (${req.daysRequested} day${req.daysRequested > 1 ? "s" : ""})` : ""}</p>}
               {req.requestedDate && <p className="text-sm text-slate-500 mt-1">📅 {req.requestedDate}{req.requestedTime ? ` at ${req.requestedTime}` : ""}</p>}
               {req.reason && <p className="text-sm text-slate-600 mt-2 italic">"{req.reason}"</p>}
+              {req.attachmentUrl && (
+                <a href={req.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 mt-3 px-3 py-2 rounded-lg border border-[#CDD8D2] bg-[#F0F4F2] text-sm font-medium text-[#4A574F] hover:bg-[#E4ECE8] transition-colors">
+                  📎 View / download attachment
+                </a>
+              )}
               {req.managerComment && (
                 <div className="mt-3 p-3 bg-slate-50 rounded-lg border-l-4 border-slate-300">
                   <p className="text-xs text-slate-500 font-medium mb-1">Manager comment:</p>

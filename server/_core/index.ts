@@ -8,7 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { getPublicRuntimeConfig } from "./publicConfig";
-import { getDb } from "../db";
+import { getDb, getUploadedFile } from "../db";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -85,6 +85,22 @@ async function startServer() {
       createContext,
     })
   );
+  // Serve DB-backed uploaded files (fallback storage when no object-storage proxy
+  // is configured). Must be registered before the SPA catch-all. The legacy
+  // /api/docs/* prefix is kept so older attachment URLs keep working.
+  const serveUploadedFile = async (req: express.Request, res: express.Response) => {
+    const key = decodeURIComponent(String((req.params as Record<string, string>)[0] || ""));
+    const file = await getUploadedFile(key);
+    if (!file) return res.status(404).send("File not found");
+    res.setHeader("Content-Type", file.mimeType || "application/octet-stream");
+    if (file.filename) {
+      res.setHeader("Content-Disposition", `inline; filename="${file.filename.replace(/"/g, "")}"`);
+    }
+    return res.send(Buffer.from(file.dataBase64, "base64"));
+  };
+  app.get("/api/files/*", serveUploadedFile);
+  app.get("/api/docs/*", serveUploadedFile);
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

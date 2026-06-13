@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+  import { useSearch } from "wouter";
   import PortalLayout from "./PortalLayout";
   import { trpc } from "@/lib/trpc";
 
@@ -12,13 +13,30 @@ import { useState } from "react";
   type StatusFilter = "pending" | "approved" | "rejected" | "all";
 
   export default function ManagerPortal() {
+    const search = useSearch();
+    const focusedId = Number(new URLSearchParams(search).get("request")) || null;
     const [filter, setFilter] = useState<StatusFilter>("pending");
     const [comment, setComment] = useState<Record<number, string>>({});
     const [reviewing, setReviewing] = useState<number | null>(null);
     const utils = trpc.useUtils();
 
-    const { data: requests, isLoading } = trpc.empManager.teamRequests.useQuery(undefined, { retry: false });
-    const { data: employees } = trpc.employee.list.useQuery(undefined, { retry: false });
+    const { data: me } = trpc.empPortal.me.useQuery(undefined, { retry: false });
+    const { data: requests, isLoading, error: requestsError } = trpc.empManager.teamRequests.useQuery(undefined, { retry: false });
+
+    // Deep-link from a notification: show all statuses so the request is visible,
+    // open its review box, and scroll it into view.
+    useEffect(() => {
+      if (!focusedId || !requests) return;
+      const target = requests.find((r: any) => r.id === focusedId);
+      if (!target) return;
+      setFilter("all");
+      if (target.status === "pending") setReviewing(focusedId);
+      const el = document.getElementById(`req-${focusedId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, [focusedId, requests]);
+    const { data: access } = trpc.empManager.access.useQuery(undefined, { retry: false });
+    const { data: team } = trpc.empManager.branchTeam.useQuery(undefined, { retry: false });
+    const [showTeam, setShowTeam] = useState(false);
     const reviewMutation = trpc.empManager.reviewRequest.useMutation({
       onSuccess: () => {
         utils.empManager.teamRequests.invalidate();
@@ -29,10 +47,8 @@ import { useState } from "react";
 
     const filtered = requests?.filter((r: any) => filter === "all" || r.status === filter) ?? [];
 
-    const getEmpName = (employeeId: number) => {
-      const emp = employees?.find((e: any) => e.id === employeeId);
-      return emp ? `${emp.firstName} ${emp.lastName}` : `Employee #${employeeId}`;
-    };
+    const getEmpName = (req: any) =>
+      req.employeeName ?? `Employee #${req.employeeId}`;
 
     const counts = {
       all: requests?.length ?? 0,
@@ -56,13 +72,58 @@ import { useState } from "react";
       { key: "all",      label: `All (${counts.all})`,           color: "slate"  },
     ];
 
+    const accessDenied = (me && !me.isManager) || requestsError?.data?.code === "FORBIDDEN";
+    if (accessDenied) {
+      return (
+        <PortalLayout>
+          <div className="p-8">
+            <div className="max-w-md mx-auto text-center py-16">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
+              <h1 className="text-xl font-bold text-slate-900">Access restricted</h1>
+              <p className="text-slate-500 mt-2">This area is only available to managers. You don't have permission to review team requests.</p>
+            </div>
+          </div>
+        </PortalLayout>
+      );
+    }
+
     return (
       <PortalLayout>
         <div className="p-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-slate-900">Team Approval Portal</h1>
-            <p className="text-slate-500 mt-1">Review and manage requests from your direct reports</p>
+          <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Team Approval Portal</h1>
+              <p className="text-slate-500 mt-1">
+                {access?.role === "super_admin"
+                  ? "Reviewing requests across all branches"
+                  : access?.role === "branch_manager"
+                  ? "Reviewing requests within your branch"
+                  : "Review and manage requests from your direct reports"}
+              </p>
+            </div>
+            {(team?.length ?? 0) > 0 && (
+              <button onClick={() => setShowTeam((v) => !v)}
+                className="px-3 py-2 rounded-lg border border-[#CDD8D2] bg-white text-sm font-medium text-[#4A574F] hover:bg-[#F0F4F2] transition-colors">
+                {showTeam ? "Hide" : "View"} branch team ({team?.length})
+              </button>
+            )}
           </div>
+
+          {showTeam && (team?.length ?? 0) > 0 && (
+            <div className="mb-6 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100 text-sm font-semibold text-slate-700">
+                {access?.role === "super_admin" ? "All employees" : "Employees in your branch"}
+              </div>
+              <div className="divide-y divide-slate-100">
+                {team!.map((m: any) => (
+                  <div key={m.id} className="px-5 py-3 flex items-center justify-between gap-4">
+                    <span className="text-sm font-medium text-slate-800">{m.firstName} {m.lastName}</span>
+                    <span className="text-xs text-slate-500">{m.jobTitle || "Employee"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Stats row */}
           <div className="grid grid-cols-4 gap-4 mb-6">
@@ -106,7 +167,7 @@ import { useState } from "react";
           ) : (
             <div className="space-y-4">
               {filtered.map((req: any) => (
-                <div key={req.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div key={req.id} id={`req-${req.id}`} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${focusedId === req.id ? "border-[#6D7B74] ring-2 ring-[#6D7B74]/30" : "border-slate-200"}`}>
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -120,15 +181,15 @@ import { useState } from "react";
                         </div>
                         <h3 className="font-semibold text-slate-900">{TYPE_LABELS[req.type] ?? req.type}</h3>
                         <p className="text-sm text-slate-500 mt-1">
-                          👤 {getEmpName(req.employeeId)}
+                          👤 {getEmpName(req)}
                         </p>
                         {req.startDate && <p className="text-sm text-slate-500 mt-1">📅 {req.startDate}{req.endDate && req.endDate !== req.startDate ? ` → ${req.endDate}` : ""}{req.daysRequested ? ` (${req.daysRequested} days)` : ""}</p>}
                         {req.requestedDate && <p className="text-sm text-slate-500 mt-1">📅 {req.requestedDate}{req.requestedTime ? ` at ${req.requestedTime}` : ""}</p>}
                         {req.reason && <p className="text-sm text-slate-600 mt-2 italic">"{req.reason}"</p>}
                         {req.attachmentUrl && (
                           <a href={req.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 mt-2 text-sm text-[#6D7B74] hover:underline">
-                            📎 View attached document
+                            className="inline-flex items-center gap-2 mt-3 px-3 py-2 rounded-lg border border-[#CDD8D2] bg-[#F0F4F2] text-sm font-medium text-[#4A574F] hover:bg-[#E4ECE8] transition-colors">
+                            📎 View / download attachment
                           </a>
                         )}
                         {req.managerComment && (
