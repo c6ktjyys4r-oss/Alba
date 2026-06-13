@@ -24,7 +24,7 @@ import {
     empNotifications,
     uploadedFiles,
   } from "../drizzle/schema";
-import type { Employee, Department } from "../drizzle/schema";
+import type { Employee, Department, PayrollRecord } from "../drizzle/schema";
 import { eq, and, or, like, desc, asc, sql } from "drizzle-orm";
 import { pbkdf2Sync, randomBytes, timingSafeEqual } from "crypto";
 
@@ -197,6 +197,26 @@ function isBranchManagerEmployee(emp: Pick<Employee, "erpRole" | "jobTitle" | "j
   );
 }
 
+// The Doctors department defaults its manager to the branch manager unless an
+// explicit manager is assigned. Detected by name (EN/AR) so it works for the
+// auto-created default departments.
+function isDoctorsDepartment(dept: Pick<Department, "name" | "nameAr"> | null) {
+  if (!dept) return false;
+  return /doctors?/i.test(dept.name ?? "") || /[أا]طباء|الأطباء|الاطباء/.test(dept.nameAr ?? "");
+}
+
+function findBranchManagerId(
+  all: Employee[],
+  branchId: number | null,
+  selfId: number,
+): number | null {
+  if (branchId == null) return null;
+  const bm = all.find(
+    (e) => e.branchId === branchId && e.id !== selfId && isBranchManagerEmployee(e),
+  );
+  return bm?.id ?? null;
+}
+
 // Pure resolver so it can be unit-tested without a database connection.
 export function resolveDirectManagerIdSync(
   emp: Employee,
@@ -204,36 +224,34 @@ export function resolveDirectManagerIdSync(
   depts: Department[],
 ): number | null {
   const topManager = all.find((e) => e.erpRole === "super_admin") ?? null;
+  const topId = topManager?.id ?? null;
 
   const isTop = topManager ? emp.id === topManager.id : emp.erpRole === "super_admin";
   if (isTop) return null;
 
+  // Branch managers and department managers escalate directly to the top super
+  // admin (e.g. Ahmed -> Bader, Alhanouf -> Bader, Roselyn -> Bader).
+  const managesDepartment = depts.some((d) => d.directManagerId === emp.id);
+  if (isBranchManagerEmployee(emp) || managesDepartment) {
+    return topId !== emp.id ? topId : null;
+  }
+
+  // Plain employee: route to their department's manager.
+  const dept = depts.find((d) => d.id === emp.departmentId) ?? null;
+  const branchManagerId = findBranchManagerId(all, emp.branchId, emp.id);
+
   let managerId: number | null = null;
-
-  // Dentists report to their branch manager (overrides the department manager).
-  if (isDentistEmployee(emp) && emp.branchId != null) {
-    const branchManager = all.find(
-      (e) => e.branchId === emp.branchId && e.id !== emp.id && isBranchManagerEmployee(e),
-    );
-    if (branchManager) managerId = branchManager.id;
+  if (isDoctorsDepartment(dept) || isDentistEmployee(emp)) {
+    // Doctors department defaults to the branch manager unless explicitly assigned.
+    managerId = dept?.directManagerId ?? branchManagerId;
+  } else {
+    managerId = dept?.directManagerId ?? null;
   }
-
-  // Otherwise fall back to the employee's department direct manager.
-  if (managerId == null) {
-    const dept = depts.find((d) => d.id === emp.departmentId) ?? null;
-    if (dept?.directManagerId) managerId = dept.directManagerId;
-  }
-
-  // Ignore a self-referential mapping.
   if (managerId === emp.id) managerId = null;
 
-  // Branch managers always roll up to the top manager; so does anyone still unresolved.
-  if (topManager) {
-    if (isBranchManagerEmployee(emp) || managerId == null) {
-      managerId = topManager.id;
-    }
-  }
-
+  // Fallback so a request is never unrouted: department has no manager ->
+  // branch manager -> top super admin.
+  if (managerId == null) managerId = branchManagerId ?? topId;
   if (managerId === emp.id) managerId = null;
   return managerId;
 }
@@ -357,6 +375,104 @@ export async function getBranchTeam(access: { role: EffectiveRole; branchId: num
   if (access.role === "super_admin") return getEmployees();
   if (access.branchId == null) return [];
   return getEmployees({ branchId: access.branchId });
+}
+
+// ─── Branch Manager (view-only) data scope ────────────────────────────────────
+// A branch manager sees only their own branch; a super admin sees everything.
+export type BranchScope = { role: EffectiveRole; branchId: number | null };
+
+export async function getBranchDepartmentsScoped(access: BranchScope) {
+  if (access.role === "super_admin") return getDepartments();
+  if (access.branchId == null) return [];
+  return getDepartments(access.branchId);
+}
+
+export async function getBranchAttendanceScoped(
+  access: BranchScope,
+  filters: { date?: string; dateFrom?: string; dateTo?: string } = {},
+) {
+  if (access.role === "super_admin") return getAttendanceEvents(filters);
+  if (access.branchId == null) return [];
+  return getAttendanceEvents({ ...filters, branchId: access.branchId });
+}
+
+// Branch-level dashboard/report summary, scoped to the manager's branch.
+export async function getBranchReportSummary(access: BranchScope) {
+  const team = await getBranchTeam(access);
+  const active = team.filter((e) => e.status === "active");
+  const empIds = new Set(team.map((e) => e.id));
+  const departments = await getBranchDepartmentsScoped(access);
+
+  const today = nowInTimezone("Asia/Riyadh").localDate;
+  const todayEvents = await getBranchAttendanceScoped(access, { date: today });
+  const presentIds = new Set(
+    todayEvents.filter((e: any) => e.accepted && e.type === "check_in").map((e: any) => e.employeeId),
+  );
+
+  const db = await getDb();
+  let pendingRequests = 0;
+  if (db) {
+    const reqs = await db.select().from(employeeRequests);
+    pendingRequests = reqs.filter(
+      (r) => r.status === "pending" && empIds.has(r.employeeId),
+    ).length;
+  }
+
+  return {
+    totalEmployees: team.length,
+    activeEmployees: active.length,
+    departments: departments.length,
+    presentToday: presentIds.size,
+    pendingRequests,
+  };
+}
+
+// Payroll records enriched with employee display names, scoped to the branch.
+export async function getBranchPayrollScoped(
+  access: BranchScope,
+  filters: { month?: number; year?: number } = {},
+) {
+  const records = await getPayrollRecords(filters);
+  const all = await getEmployees();
+  const empById = new Map(all.map((e) => [e.id, e]));
+  const scoped =
+    access.role === "super_admin"
+      ? records
+      : access.branchId == null
+        ? []
+        : records.filter((r) => empById.get(r.employeeId)?.branchId === access.branchId);
+  return scoped.map((r) => ({ ...r, ...displayNames(empById.get(r.employeeId), r.employeeId) }));
+}
+
+// Locate a payroll record and decide whether the caller may act on it.
+export async function payrollRecordInScope(
+  access: BranchScope,
+  recordId: number,
+): Promise<{ record: PayrollRecord | null; allowed: boolean }> {
+  const record = await getPayrollRecordById(recordId);
+  if (!record) return { record: null, allowed: false };
+  if (access.role === "super_admin") return { record, allowed: true };
+  if (access.branchId == null) return { record, allowed: false };
+  const emp = await getEmployeeById(record.employeeId);
+  return { record, allowed: emp?.branchId === access.branchId };
+}
+
+export function computePayrollNet(r: {
+  basicSalary: string | number;
+  totalAllowances: string | number | null;
+  totalDeductions: string | number | null;
+  bonus: string | number | null;
+  overtimeAmount: string | number | null;
+  adjustments: string | number | null;
+}): number {
+  return (
+    Number(r.basicSalary) +
+    Number(r.totalAllowances ?? 0) -
+    Number(r.totalDeductions ?? 0) +
+    Number(r.bonus ?? 0) +
+    Number(r.overtimeAmount ?? 0) +
+    Number(r.adjustments ?? 0)
+  );
 }
 
 export async function createEmployee(data: any) {

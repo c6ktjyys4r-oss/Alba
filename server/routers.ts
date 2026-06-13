@@ -2,7 +2,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { localAuth } from "./_core/localAuth";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router, empProtectedProcedure, empManagerProcedure } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router, empProtectedProcedure, empManagerProcedure, branchManagerProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
@@ -215,7 +215,11 @@ const payrollRouter = router({
       notes: input.notes,
     } as any);
   }),
-  updateStatus: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(["draft", "approved", "paid"]) })).mutation(({ input }) => db.updatePayrollRecord(input.id, { status: input.status, paidAt: input.status === "paid" ? new Date() : undefined })),
+  updateStatus: protectedProcedure.input(z.object({ id: z.number(), status: z.enum(["draft", "branch_approved", "approved", "paid"]) })).mutation(({ input }) => db.updatePayrollRecord(input.id, {
+    status: input.status,
+    ...(input.status === "approved" ? { approvedAt: new Date() } : {}),
+    paidAt: input.status === "paid" ? new Date() : undefined,
+  })),
     edit: protectedProcedure.input(z.object({
       id: z.number(),
       bonus: z.number().optional(),
@@ -920,6 +924,119 @@ const importRouter = router({
     }),
   });
   
+  // ─── Branch Manager (branch-scoped, view-only + payroll workflow) ─────────────
+  const branchManagerRouter = router({
+    // Role + branch scope so the UI can label/gate itself.
+    access: branchManagerProcedure.query(({ ctx }) => ({
+      role: ctx.bmRole,
+      branchId: ctx.bmBranchId,
+    })),
+
+    // View-only: employees in the manager's branch (super admin: all).
+    employees: branchManagerProcedure.query(async ({ ctx }) => {
+      const team = await db.getBranchTeam({ role: ctx.bmRole, branchId: ctx.bmBranchId });
+      return team.map((e: any) => ({
+        id: e.id,
+        employeeCode: e.employeeCode,
+        firstName: e.firstName,
+        lastName: e.lastName,
+        firstNameAr: e.firstNameAr,
+        lastNameAr: e.lastNameAr,
+        jobTitle: e.jobTitle,
+        jobTitleAr: e.jobTitleAr,
+        email: e.email,
+        phone: e.phone,
+        branchId: e.branchId,
+        departmentId: e.departmentId,
+        erpRole: e.erpRole,
+        status: e.status,
+        avatarUrl: e.avatarUrl,
+      }));
+    }),
+
+    // View-only: departments in the manager's branch.
+    departments: branchManagerProcedure.query(({ ctx }) =>
+      db.getBranchDepartmentsScoped({ role: ctx.bmRole, branchId: ctx.bmBranchId }),
+    ),
+
+    // View-only: attendance events for the manager's branch.
+    attendance: branchManagerProcedure
+      .input(z.object({ date: z.string().optional(), dateFrom: z.string().optional(), dateTo: z.string().optional() }).optional())
+      .query(({ ctx, input }) =>
+        db.getBranchAttendanceScoped({ role: ctx.bmRole, branchId: ctx.bmBranchId }, input ?? {}),
+      ),
+
+    // Branch-level report summary.
+    report: branchManagerProcedure.query(({ ctx }) =>
+      db.getBranchReportSummary({ role: ctx.bmRole, branchId: ctx.bmBranchId }),
+    ),
+
+    // ── Branch payroll workflow ──────────────────────────────────────────────
+    payroll: router({
+      list: branchManagerProcedure
+        .input(z.object({ month: z.number().optional(), year: z.number().optional() }).optional())
+        .query(({ ctx, input }) =>
+          db.getBranchPayrollScoped({ role: ctx.bmRole, branchId: ctx.bmBranchId }, input ?? {}),
+        ),
+
+      // Add approved overtime (hours + amount) to a branch payroll record.
+      addOvertime: branchManagerProcedure
+        .input(z.object({ id: z.number(), hours: z.number().min(0), amount: z.number().min(0) }))
+        .mutation(async ({ ctx, input }) => {
+          const access = { role: ctx.bmRole, branchId: ctx.bmBranchId };
+          const { record, allowed } = await db.payrollRecordInScope(access, input.id);
+          if (!record || !allowed) throw new Error("Not authorized for this payroll record");
+          if (record.status !== "draft")
+            throw new Error("Overtime can only be added before branch approval");
+          const overtimeHours = Number(record.overtimeHours ?? 0) + input.hours;
+          const overtimeAmount = Number(record.overtimeAmount ?? 0) + input.amount;
+          const netSalary = db.computePayrollNet({ ...record, overtimeAmount });
+          const [updated] = await db.updatePayrollRecord(input.id, {
+            overtimeHours: String(overtimeHours),
+            overtimeAmount: String(overtimeAmount),
+            netSalary: String(netSalary),
+          });
+          return updated;
+        }),
+
+      // Apply an approved adjustment (positive) or deduction (negative).
+      applyAdjustment: branchManagerProcedure
+        .input(z.object({ id: z.number(), amount: z.number() }))
+        .mutation(async ({ ctx, input }) => {
+          const access = { role: ctx.bmRole, branchId: ctx.bmBranchId };
+          const { record, allowed } = await db.payrollRecordInScope(access, input.id);
+          if (!record || !allowed) throw new Error("Not authorized for this payroll record");
+          if (record.status !== "draft")
+            throw new Error("Adjustments can only be applied before branch approval");
+          const adjustments = Number(record.adjustments ?? 0) + input.amount;
+          const netSalary = db.computePayrollNet({ ...record, adjustments });
+          const [updated] = await db.updatePayrollRecord(input.id, {
+            adjustments: String(adjustments),
+            netSalary: String(netSalary),
+          });
+          return updated;
+        }),
+
+      // Branch Manager approval — moves draft -> branch_approved (final approval
+      // remains with a Super Admin via payroll.updateStatus).
+      branchApprove: branchManagerProcedure
+        .input(z.object({ id: z.number() }))
+        .mutation(async ({ ctx, input }) => {
+          const access = { role: ctx.bmRole, branchId: ctx.bmBranchId };
+          const { record, allowed } = await db.payrollRecordInScope(access, input.id);
+          if (!record || !allowed) throw new Error("Not authorized for this payroll record");
+          if (record.status !== "draft")
+            throw new Error("Only draft payroll records can be branch-approved");
+          const [updated] = await db.updatePayrollRecord(input.id, {
+            status: "branch_approved",
+            branchApprovedBy: ctx.empEmployeeId,
+            branchApprovedAt: new Date(),
+          });
+          return updated;
+        }),
+    }),
+  });
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -1017,6 +1134,7 @@ export const appRouter = router({
     import: importRouter,
     empPortal: empPortalRouter,
     empManager: empManagerRouter,
+    branchManager: branchManagerRouter,
   });
 
 export type AppRouter = typeof appRouter;

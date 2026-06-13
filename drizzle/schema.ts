@@ -158,9 +158,19 @@ export const payrollRecords = pgTable("payroll_records", {
   totalAllowances: decimal("totalAllowances", { precision: 12, scale: 2 }).default("0"),
   totalDeductions: decimal("totalDeductions", { precision: 12, scale: 2 }).default("0"),
   bonus: decimal("bonus", { precision: 12, scale: 2 }).default("0"),
+  overtimeHours: decimal("overtimeHours", { precision: 8, scale: 2 }).default("0"),
+  overtimeAmount: decimal("overtimeAmount", { precision: 12, scale: 2 }).default("0"),
+  adjustments: decimal("adjustments", { precision: 12, scale: 2 }).default("0"),
   netSalary: decimal("netSalary", { precision: 12, scale: 2 }).notNull(),
-  status: text("status").$type<"draft" | "approved" | "paid">().default("draft").notNull(),
+  status: text("status")
+    .$type<"draft" | "branch_approved" | "approved" | "paid">()
+    .default("draft")
+    .notNull(),
   notes: text("notes"),
+  branchApprovedBy: integer("branchApprovedBy"),
+  branchApprovedAt: timestamp("branchApprovedAt"),
+  approvedBy: integer("approvedBy"),
+  approvedAt: timestamp("approvedAt"),
   generatedAt: timestamp("generatedAt").defaultNow().notNull(),
   paidAt: timestamp("paidAt"),
 });

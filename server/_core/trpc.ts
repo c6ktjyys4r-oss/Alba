@@ -36,6 +36,28 @@ import { NOT_ADMIN_ERR_MSG, UNAUTHED_ERR_MSG } from '@shared/const';
     }),
   );
 
+  // Branch Manager procedure — requires an employee session whose effective role
+  // is super_admin (full access) or branch_manager (scoped to their branch).
+  // Injects the resolved role + branch so resolvers can enforce branch boundaries.
+  export const branchManagerProcedure = t.procedure.use(
+    t.middleware(async opts => {
+      const { ctx, next } = opts;
+      if (!ctx.empEmployeeId)
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Employee portal session required" });
+      const access = await getManagerAccess(ctx.empEmployeeId);
+      if (access.role !== "super_admin" && access.role !== "branch_manager")
+        throw new TRPCError({ code: "FORBIDDEN", message: "Branch manager access required" });
+      return next({
+        ctx: {
+          ...ctx,
+          empEmployeeId: ctx.empEmployeeId,
+          bmRole: access.role,
+          bmBranchId: access.branchId,
+        },
+      });
+    }),
+  );
+
   // Manager Approval Portal procedure — requires an employee-portal session whose
   // effective role grants manager access (super_admin, branch_manager, or a routed
   // direct manager). Injects the resolved role + branch scope into the context so

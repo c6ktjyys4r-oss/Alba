@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveRoleOf, canManagerSeeRequest, type EffectiveRole } from "./db";
+import { effectiveRoleOf, canManagerSeeRequest, computePayrollNet, type EffectiveRole } from "./db";
 import type { Employee } from "../drizzle/schema";
 
 function emp(p: Partial<Employee> & { id: number }): Employee {
@@ -61,5 +61,30 @@ describe("canManagerSeeRequest", () => {
   it("limits a plain manager (e.g. department manager) to requests routed to them", () => {
     expect(canManagerSeeRequest(deptMgr, { managerId: 6, requesterBranchId: 1 })).toBe(true);
     expect(canManagerSeeRequest(deptMgr, { managerId: 99, requesterBranchId: 1 })).toBe(false);
+  });
+});
+
+describe("computePayrollNet", () => {
+  it("sums basic + allowances − deductions + bonus + overtime + adjustments", () => {
+    const net = computePayrollNet({
+      basicSalary: "5000",
+      totalAllowances: "1500",
+      totalDeductions: "500",
+      bonus: "200",
+      overtimeAmount: "300",
+      adjustments: "-100",
+    });
+    expect(net).toBe(5000 + 1500 - 500 + 200 + 300 - 100);
+  });
+  it("handles null/undefined fields as zero", () => {
+    const net = computePayrollNet({
+      basicSalary: "3000",
+      totalAllowances: null,
+      totalDeductions: null,
+      bonus: null,
+      overtimeAmount: null,
+      adjustments: null,
+    });
+    expect(net).toBe(3000);
   });
 });
