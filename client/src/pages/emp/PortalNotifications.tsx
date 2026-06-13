@@ -1,5 +1,6 @@
 import PortalLayout from "./PortalLayout";
   import { trpc } from "@/lib/trpc";
+  import { useLocation } from "wouter";
 
   const TYPE_ICONS: Record<string, string> = {
     request_submitted: "📬",
@@ -8,11 +9,28 @@ import PortalLayout from "./PortalLayout";
     request_comment: "💬",
   };
 
+  // Where a notification should take the user when clicked. Requests a manager
+  // receives (submitted) open the team approval screen for that request; updates
+  // an employee receives open their own request list, both deep-linked by id.
+  function notificationTarget(n: { type: string; requestId: number | null }): string | null {
+    if (!n.requestId) return null;
+    return n.type === "request_submitted"
+      ? `/emp/manager?request=${n.requestId}`
+      : `/emp/requests?request=${n.requestId}`;
+  }
+
   export default function PortalNotifications() {
     const utils = trpc.useUtils();
+    const [, navigate] = useLocation();
     const { data: notifications, isLoading } = trpc.empPortal.myNotifications.useQuery(undefined, { retry: false });
     const markRead = trpc.empPortal.markNotificationRead.useMutation({ onSuccess: () => utils.empPortal.myNotifications.invalidate() });
     const markAll = trpc.empPortal.markAllRead.useMutation({ onSuccess: () => utils.empPortal.myNotifications.invalidate() });
+
+    const handleOpen = (n: any) => {
+      if (!n.isRead) markRead.mutate({ id: n.id });
+      const target = notificationTarget(n);
+      if (target) navigate(target);
+    };
 
     const unread = notifications?.filter((n: any) => !n.isRead).length ?? 0;
 
@@ -51,7 +69,7 @@ import PortalLayout from "./PortalLayout";
                   className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
                     n.isRead ? "bg-white border-slate-100 opacity-70" : "bg-[#F0F4F2] border-[#CDD8D2]"
                   }`}
-                  onClick={() => { if (!n.isRead) markRead.mutate({ id: n.id }); }}
+                  onClick={() => handleOpen(n)}
                 >
                   <div className="text-2xl flex-shrink-0 mt-0.5">{TYPE_ICONS[n.type] ?? "🔔"}</div>
                   <div className="flex-1 min-w-0">

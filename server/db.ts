@@ -22,6 +22,7 @@ import {
     leaveBalances,
     employeeRequests,
     empNotifications,
+    uploadedFiles,
   } from "../drizzle/schema";
 import type { Employee, Department } from "../drizzle/schema";
 import { eq, and, or, like, desc, asc, sql } from "drizzle-orm";
@@ -253,6 +254,109 @@ export async function isManagerEmployee(employeeId: number): Promise<boolean> {
       e.id !== employeeId &&
       resolveDirectManagerIdSync(e, all, depts) === employeeId,
   );
+}
+
+// ─── Role-Based Access Control ────────────────────────────────────────────────
+// Collapses the 7-value erpRole enum into the 3 account types the product
+// enforces: super_admin (full access), branch_manager (own branch only), and
+// employee (own portal only). Used by both the API guards and the UI.
+export type EffectiveRole = "super_admin" | "branch_manager" | "employee";
+
+export function effectiveRoleOf(
+  emp: Pick<Employee, "erpRole" | "jobTitle" | "jobTitleAr">,
+): EffectiveRole {
+  if (emp.erpRole === "super_admin") return "super_admin";
+  if (isBranchManagerEmployee(emp)) return "branch_manager";
+  return "employee";
+}
+
+export type ManagerAccess = {
+  isManager: boolean;
+  role: EffectiveRole;
+  branchId: number | null;
+};
+
+// Who can use the manager approval portal and how wide their scope is.
+// super_admin sees everything; branch_manager sees their whole branch; any other
+// employee who is the routed direct manager of someone keeps their existing
+// per-report access (so department-manager routing is not broken).
+export async function getManagerAccess(employeeId: number): Promise<ManagerAccess> {
+  const emp = await getEmployeeById(employeeId);
+  if (!emp) return { isManager: false, role: "employee", branchId: null };
+  const role = effectiveRoleOf(emp);
+  const isManager =
+    role === "super_admin" || role === "branch_manager" || (await isManagerEmployee(employeeId));
+  return { isManager, role, branchId: emp.branchId ?? null };
+}
+
+// Pure visibility predicate so the branch-scoping rules can be unit-tested
+// without a database connection.
+export function canManagerSeeRequest(
+  access: { employeeId: number; role: EffectiveRole; branchId: number | null },
+  request: { managerId: number | null; requesterBranchId: number | null },
+): boolean {
+  if (access.role === "super_admin") return true;
+  if (request.managerId === access.employeeId) return true;
+  if (access.role === "branch_manager" && access.branchId != null) {
+    return request.requesterBranchId === access.branchId;
+  }
+  return false;
+}
+
+function displayNames(emp: Employee | undefined, id: number) {
+  return {
+    employeeName: emp ? `${emp.firstName} ${emp.lastName}` : `Employee #${id}`,
+    employeeNameAr: emp
+      ? `${emp.firstNameAr ?? ""} ${emp.lastNameAr ?? ""}`.trim() || null
+      : null,
+  };
+}
+
+// Requests visible to a manager, scoped by role, with requester names enriched so
+// the portal does not depend on the admin-only employee list endpoint.
+export async function getManagerRequestsScoped(access: {
+  employeeId: number;
+  role: EffectiveRole;
+  branchId: number | null;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const all = await getEmployees();
+  const empById = new Map(all.map((e) => [e.id, e]));
+  const rows = await db
+    .select()
+    .from(employeeRequests)
+    .orderBy(desc(employeeRequests.createdAt));
+
+  const visible = rows.filter((r) =>
+    canManagerSeeRequest(access, {
+      managerId: r.managerId,
+      requesterBranchId: empById.get(r.employeeId)?.branchId ?? null,
+    }),
+  );
+
+  return visible.map((r) => ({ ...r, ...displayNames(empById.get(r.employeeId), r.employeeId) }));
+}
+
+// Whether a manager may approve/reject a specific request.
+export async function canReviewRequest(
+  access: { employeeId: number; role: EffectiveRole; branchId: number | null },
+  request: { managerId: number | null; employeeId: number },
+): Promise<boolean> {
+  if (access.role === "super_admin") return true;
+  if (request.managerId === access.employeeId) return true;
+  if (access.role === "branch_manager" && access.branchId != null) {
+    const requester = await getEmployeeById(request.employeeId);
+    return requester?.branchId === access.branchId;
+  }
+  return false;
+}
+
+// Branch team roster for a manager (super_admin sees everyone).
+export async function getBranchTeam(access: { role: EffectiveRole; branchId: number | null }) {
+  if (access.role === "super_admin") return getEmployees();
+  if (access.branchId == null) return [];
+  return getEmployees({ branchId: access.branchId });
 }
 
 export async function createEmployee(data: any) {
@@ -1263,5 +1367,21 @@ export async function createTaskComment(data: any) {
     const db = await getDb();
     if (!db) return null;
     return db.update(empNotifications).set({ isRead: true }).where(eq(empNotifications.recipientEmployeeId, employeeId)).returning();
+  }
+
+  // ─── Uploaded Files (DB-backed storage fallback) ──────────────────────────────
+  export async function putUploadedFile(file: { fileKey: string; filename?: string; mimeType?: string; dataBase64: string }) {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    await db.insert(uploadedFiles).values(file).onConflictDoUpdate({
+      target: uploadedFiles.fileKey,
+      set: { dataBase64: file.dataBase64, filename: file.filename, mimeType: file.mimeType },
+    });
+  }
+  export async function getUploadedFile(fileKey: string) {
+    const db = await getDb();
+    if (!db) return null;
+    const r = await db.select().from(uploadedFiles).where(eq(uploadedFiles.fileKey, fileKey));
+    return r[0] || null;
   }
   

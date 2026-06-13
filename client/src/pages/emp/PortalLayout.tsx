@@ -58,6 +58,11 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900 truncate">{me?.firstName} {me?.lastName}</p>
               <p className="text-xs text-slate-500 truncate">{me?.jobTitle || "Employee"}</p>
+              {me?.role && me.role !== "employee" && (
+                <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E7ECE9] text-[#4A574F]">
+                  {me.role === "super_admin" ? "Super Admin" : "Branch Manager"}
+                </span>
+              )}
             </div>
           </div>
           <button
