@@ -36,6 +36,13 @@ import { Toaster } from "@/components/ui/sonner";
   import ManagerPortal from "./pages/emp/ManagerPortal";
   import ChangePassword from "./pages/emp/ChangePassword";
 
+  // Branch Manager pages (branch-scoped, rendered inside the unified shell)
+  import BranchEmployees from "./pages/branch/BranchEmployees";
+  import BranchDepartments from "./pages/branch/BranchDepartments";
+  import BranchAttendance from "./pages/branch/BranchAttendance";
+  import BranchPayroll from "./pages/branch/BranchPayroll";
+  import BranchReports from "./pages/branch/BranchReports";
+
   function AuthLoading() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -68,6 +75,16 @@ import { Toaster } from "@/components/ui/sonner";
     if (loading) return <AuthLoading />;
     if (!user) return <LoginPage />;
     if (!user.employeeId) return <Redirect to="/" />;
+    return <Component />;
+  }
+
+  // Branch-scoped pages — available to super admins and branch managers. Plain
+  // employees are sent to their personal home.
+  function BranchManagerRoute({ component: Component }: { component: React.ComponentType }) {
+    const { user, loading } = useAuth();
+    if (loading) return <AuthLoading />;
+    if (!user) return <LoginPage />;
+    if (user.role !== "super_admin" && user.role !== "branch_manager") return <Redirect to="/emp" />;
     return <Component />;
   }
 
@@ -104,6 +121,13 @@ import { Toaster } from "@/components/ui/sonner";
         <Route path="/emp/attendance" component={() => <PortalRoute component={PortalAttendance} />} />
         <Route path="/emp/manager" component={() => <PortalRoute component={ManagerPortal} />} />
         <Route path="/emp" component={() => <PortalRoute component={PortalDashboard} />} />
+
+        {/* Branch Manager pages */}
+        <Route path="/branch/employees" component={() => <BranchManagerRoute component={BranchEmployees} />} />
+        <Route path="/branch/departments" component={() => <BranchManagerRoute component={BranchDepartments} />} />
+        <Route path="/branch/attendance" component={() => <BranchManagerRoute component={BranchAttendance} />} />
+        <Route path="/branch/payroll" component={() => <BranchManagerRoute component={BranchPayroll} />} />
+        <Route path="/branch/reports" component={() => <BranchManagerRoute component={BranchReports} />} />
 
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

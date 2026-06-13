@@ -69,9 +69,33 @@ describe("resolveDirectManagerIdSync", () => {
     expect(resolveDirectManagerIdSync(lonelyDentist, [...EMPLOYEES, lonelyDentist], DEPARTMENTS)).toBe(TOP.id);
   });
 
-  it("falls back to the top manager for an employee with no department", () => {
+  it("falls back to the branch manager for an employee with no department", () => {
     const orphan = emp({ id: 98, branchId: 1, departmentId: null });
-    expect(resolveDirectManagerIdSync(orphan, [...EMPLOYEES, orphan], DEPARTMENTS)).toBe(TOP.id);
+    expect(resolveDirectManagerIdSync(orphan, [...EMPLOYEES, orphan], DEPARTMENTS)).toBe(AHMED.id);
+  });
+
+  it("routes an employee whose department has no manager to the branch manager", () => {
+    // Dept 2 (branch 1) has no manager; a non-dentist there → branch manager.
+    const clerk = emp({ id: 97, branchId: 1, departmentId: 2 });
+    expect(resolveDirectManagerIdSync(clerk, [...EMPLOYEES, clerk], DEPARTMENTS)).toBe(AHMED.id);
+  });
+
+  it("routes a Doctors-department employee to the branch manager by default", () => {
+    const doctorsDept = dept(30, 1, null);
+    (doctorsDept as any).name = "Doctors";
+    const doctor = emp({ id: 96, branchId: 1, departmentId: 30, jobTitle: "Consultant" });
+    expect(
+      resolveDirectManagerIdSync(doctor, [...EMPLOYEES, doctor], [...DEPARTMENTS, doctorsDept]),
+    ).toBe(AHMED.id);
+  });
+
+  it("honours an explicit Doctors-department manager when assigned", () => {
+    const doctorsDept = dept(31, 1, ALHANOUF.id);
+    (doctorsDept as any).name = "Doctors";
+    const doctor = emp({ id: 95, branchId: 1, departmentId: 31, jobTitle: "Consultant" });
+    expect(
+      resolveDirectManagerIdSync(doctor, [...EMPLOYEES, doctor], [...DEPARTMENTS, doctorsDept]),
+    ).toBe(ALHANOUF.id);
   });
 
   it("recognizes a branch manager by Arabic job title", () => {

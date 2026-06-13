@@ -192,8 +192,20 @@ export default function ERPLayout({ children }: { children: React.ReactNode }) {
       ]
     : [];
 
+  const isBranchManager = user?.role === "branch_manager";
+  const branchNavItems: NavItem[] = isBranchManager
+    ? [
+        { label: "Employees", icon: <Users size={18} />, path: "/branch/employees" },
+        { label: "Departments", icon: <Building2 size={18} />, path: "/branch/departments" },
+        { label: "Attendance", icon: <Clock size={18} />, path: "/branch/attendance" },
+        { label: "Payroll", icon: <DollarSign size={18} />, path: "/branch/payroll" },
+        { label: "Reports", icon: <PieChart size={18} />, path: "/branch/reports" },
+      ]
+    : [];
+
   const navGroups: { title: string; items: NavItem[] }[] = [
     ...(personalNavItems.length ? [{ title: "Personal", items: personalNavItems }] : []),
+    ...(branchNavItems.length ? [{ title: "Branch", items: branchNavItems }] : []),
     ...(isSuperAdmin ? [{ title: "Administration", items: adminNavItems }] : []),
   ];
 

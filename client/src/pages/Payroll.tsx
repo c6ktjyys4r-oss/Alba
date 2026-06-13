@@ -151,6 +151,10 @@ export default function Payroll() {
                             <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-red-500 border-red-200 hover:bg-red-50" onClick={()=>deletePayroll.mutate({id:p.id})}><Trash2 size={12}/></Button>
                             <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={()=>updateStatus.mutate({id:p.id,status:"approved"})}>{t("payroll.approve")}</Button>
                           </>}
+                          {p.status==="branch_approved" && <>
+                            <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-slate-600" onClick={()=>updateStatus.mutate({id:p.id,status:"draft"})}>Revert to draft</Button>
+                            <Button size="sm" className="h-6 text-xs px-2 bg-[#6D7B74] hover:bg-[#5d6a63] text-white" onClick={()=>updateStatus.mutate({id:p.id,status:"approved"})}>Final approve</Button>
+                          </>}
                           {p.status==="approved" && <>
                             <Button size="sm" variant="outline" className="h-6 text-xs px-2 text-slate-600" onClick={()=>updateStatus.mutate({id:p.id,status:"draft"})}>Unapprove</Button>
                             <Button size="sm" className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700" onClick={()=>updateStatus.mutate({id:p.id,status:"paid"})}>{t("payroll.markPaid")}</Button>
