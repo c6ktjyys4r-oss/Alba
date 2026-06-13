@@ -59,6 +59,10 @@ vi.mock("./db", () => ({
   getDashboardStats: vi.fn().mockResolvedValue({ totalEmployees: 5, activeContracts: 3, expiringContracts: 1, todayAttendance: 4, lateToday: 1, overdueTasks: 0, lowStockCount: 2, monthRevenue: 10000, monthExpenses: 5000, netProfit: 5000 }),
   upsertUser: vi.fn(),
   getUserByOpenId: vi.fn(),
+  getManagerAccess: vi.fn().mockResolvedValue({ isManager: false, role: "employee", branchId: 1 }),
+  getEmployeeCredential: vi.fn().mockResolvedValue({ employeeId: 1, username: "jdoe", passwordHash: "hash", isActive: true, mustChangePassword: false }),
+  verifyPassword: vi.fn().mockReturnValue(true),
+  updateEmployeeCredential: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock LLM
@@ -242,11 +246,27 @@ describe("AI Router", () => {
 });
 
 describe("Auth Router", () => {
-  it("returns current user from me query", async () => {
+  it("returns the unified principal from me query", async () => {
     const caller = appRouter.createCaller(createAdminCtx());
     const result = await caller.auth.me();
+    // The legacy admin account maps to the super_admin principal in the unified app.
     expect(result?.name).toBe("Admin");
-    expect(result?.role).toBe("admin");
+    expect(result?.role).toBe("super_admin");
+  });
+
+  it("returns an employee principal from an employee session", async () => {
+    const ctx = {
+      user: null,
+      empEmployeeId: 1,
+      req: { protocol: "https", headers: {} },
+      res: { clearCookie: vi.fn(), cookie: vi.fn() },
+    } as unknown as TrpcContext;
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.auth.me();
+    expect(result?.employeeId).toBe(1);
+    expect(result?.name).toBe("John Doe");
+    expect(result?.role).toBe("employee");
+    expect(result?.isManager).toBe(false);
   });
 
   it("clears session cookie on logout", async () => {

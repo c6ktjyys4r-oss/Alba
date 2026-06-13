@@ -924,21 +924,81 @@ const importRouter = router({
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    // Unified principal for the single application shell. Resolved from the
+    // employee-credentials session (the canonical login) or, as a break-glass
+    // fallback, the legacy admin account.
+    me: publicProcedure.query(async ({ ctx }) => {
+      if (ctx.empEmployeeId != null) {
+        const emp = await db.getEmployeeById(ctx.empEmployeeId);
+        if (emp) {
+          const access = await db.getManagerAccess(emp.id);
+          return {
+            id: emp.id,
+            employeeId: emp.id,
+            name: `${emp.firstName} ${emp.lastName}`.trim() || "User",
+            firstName: emp.firstName,
+            lastName: emp.lastName,
+            email: emp.email ?? null,
+            jobTitle: emp.jobTitle ?? null,
+            role: access.role,
+            isManager: access.isManager,
+            branchId: emp.branchId ?? null,
+          };
+        }
+      }
+      if (ctx.user) {
+        return {
+          id: ctx.user.id,
+          employeeId: null,
+          name: ctx.user.name ?? "Administrator",
+          firstName: ctx.user.name ?? "Administrator",
+          lastName: "",
+          email: ctx.user.email ?? null,
+          jobTitle: "Administrator",
+          role: "super_admin" as const,
+          isManager: true,
+          branchId: null,
+        };
+      }
+      return null;
+    }),
+    // Single login: employee credentials are the canonical identity; the legacy
+    // admin account remains only as a break-glass fallback (no separate page).
     login: publicProcedure.input(z.object({
       username: z.string().min(1),
       password: z.string().min(1),
     })).mutation(async ({ input, ctx }) => {
-      const result = await localAuth.login(input.username, input.password);
-      if (!result) {
-        throw new Error("Invalid username or password");
+      const cred = await db.getEmployeeCredential(input.username);
+      if (cred && db.verifyPassword(input.password, cred.passwordHash) && cred.isActive) {
+        await db.updateEmployeeCredential(cred.employeeId, { lastLoginAt: new Date() });
+        const secret = new TextEncoder().encode(ENV.cookieSecret);
+        const token = await new SignJWT({ empEmployeeId: cred.employeeId })
+          .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+          .setExpirationTime(Math.floor((Date.now() + ONE_YEAR_MS) / 1000))
+          .sign(secret);
+        const opts = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(EMP_COOKIE, token, { ...opts, maxAge: ONE_YEAR_MS });
+        const access = await db.getManagerAccess(cred.employeeId);
+        return {
+          role: access.role,
+          employeeId: cred.employeeId,
+          mustChangePassword: cred.mustChangePassword ?? false,
+        };
       }
-      localAuth.setSessionCookie(ctx.res, ctx.req, result.token);
-      return result.user;
+
+      // Break-glass: legacy admin account.
+      const result = await localAuth.login(input.username, input.password);
+      if (result) {
+        localAuth.setSessionCookie(ctx.res, ctx.req, result.token);
+        return { role: "super_admin" as const, employeeId: null, mustChangePassword: false };
+      }
+
+      throw new Error("Invalid username or password");
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      ctx.res.clearCookie(EMP_COOKIE, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
   }),

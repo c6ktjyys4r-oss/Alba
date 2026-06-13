@@ -4,6 +4,7 @@ import type { CreateExpressContextOptions } from "@trpc/server/adapters/express"
   import { localAuth } from "./localAuth";
   import { jwtVerify } from "jose";
   import { ENV } from "./env";
+  import { getEmployeeById, effectiveRoleOf } from "../db";
 
   const EMP_COOKIE = "emp_session";
 
@@ -43,6 +44,30 @@ import type { CreateExpressContextOptions } from "@trpc/server/adapters/express"
         if (typeof payload.empEmployeeId === "number") empEmployeeId = payload.empEmployeeId;
       }
     } catch {}
+
+    // Unified identity: a Super Admin who logs in with employee credentials gets
+    // the same admin access the legacy admin account had. Synthesize an admin
+    // `user` from their employee record so the existing admin/protected routers
+    // work unchanged, without exposing them to non-super-admin sessions.
+    if (!user && empEmployeeId != null) {
+      try {
+        const emp = await getEmployeeById(empEmployeeId);
+        if (emp && effectiveRoleOf(emp) === "super_admin") {
+          const now = new Date();
+          user = {
+            id: emp.id,
+            openId: `emp:${emp.id}`,
+            name: `${emp.firstName} ${emp.lastName}`.trim(),
+            email: emp.email ?? null,
+            loginMethod: "employee",
+            role: "admin",
+            createdAt: now,
+            updatedAt: now,
+            lastSignedIn: now,
+          };
+        }
+      } catch {}
+    }
 
     return { req: opts.req, res: opts.res, user, empEmployeeId };
   }
